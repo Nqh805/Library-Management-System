@@ -1,0 +1,184 @@
+{% extends "base.html" %} {# Kế thừa layout từ base.html #}
+{% block title %}Đăng Nhập{% endblock %} {# Đặt tiêu đề trang #}
+
+{# ========================================================= #}
+{# BLOCK CONTENT: Nội dung chính của trang Đăng Nhập #}
+{# Hiển thị form cho phép người dùng nhập email và mật khẩu để đăng nhập. #}
+{# ========================================================= #}
+{% block content %}
+<div class="row justify-content-center"> {# Căn giữa form trên trang #}
+    <div class="col-md-6"> {# Giới hạn chiều rộng form #}
+        <h2>Đăng Nhập</h2>
+
+        {# ========================================================= #}
+        {# FORM ĐĂNG NHẬP #}
+        {# Gửi dữ liệu bằng phương thức POST đến route 'auth.login'. #}
+        {# Có validation phía client bằng JavaScript. #}
+        {# novalidate: Tắt validation mặc định của trình duyệt. #}
+        {# autocomplete="off": Tắt gợi ý tự động điền chung cho form (nhưng bật cho từng input). #}
+        {# ========================================================= #}
+        <form method="POST" action="{{ url_for('auth.login') }}" id="loginForm" novalidate autocomplete="off">
+            {# CSRF token ẩn để bảo vệ form #}
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+            {# --- Input Email --- #}
+            <div class="mb-3">
+                <label for="email" class="form-label">Email</label>
+                {# autocomplete="on": Cho phép trình duyệt gợi ý email đã lưu #}
+                <input type="email" class="form-control" id="email" name="email" required autocomplete="on" />
+                {# Vùng hiển thị lỗi validation cho email #}
+                <div class="invalid-feedback" id="emailErrorLogin"> Vui lòng nhập địa chỉ email hợp lệ. </div>
+            </div>
+
+            {# --- Input Mật khẩu --- #}
+            <div class="mb-3">
+                <label for="passwordLogin" class="form-label">Mật khẩu</label>
+                <div class="input-group"> {# Gộp input và nút con mắt #}
+                    {# autocomplete="current-password": Gợi ý trình duyệt dùng mật khẩu đã lưu cho trang này #}
+                    <input type="password" class="form-control" id="passwordLogin" name="password" required
+                        autocomplete="current-password" />
+                    {# Nút hiển thị/ẩn mật khẩu #}
+                    <button class="btn btn-outline-secondary" type="button" id="togglePasswordLogin">
+                        <i class="fas fa-eye"></i> {# Icon mắt mặc định #}
+                    </button>
+                    {# Vùng hiển thị lỗi validation cho mật khẩu #}
+                    <div class="invalid-feedback" id="passwordErrorLogin"> Vui lòng nhập mật khẩu (ít nhất 6 ký tự).
+                    </div>
+                </div>
+            </div>
+
+            {# --- Nút Submit --- #}
+            <button type="submit" class="btn btn-primary">Đăng Nhập</button>
+        </form> {# Kết thúc form #}
+
+        {# --- Link đến trang Đăng ký --- #}
+        <p class="mt-3">
+            Chưa có tài khoản?
+            <a href="{{ url_for('auth.register') }}">Đăng ký tại đây</a>.
+        </p>
+    </div> {# Kết thúc col-md-6 #}
+</div> {# Kết thúc row #}
+{% endblock %} {# Kết thúc block content #}
+
+
+{# ========================================================= #}
+{# BLOCK SCRIPTS: Chứa mã JavaScript cho trang #}
+{# Thực hiện validation phía client cho form đăng nhập và chức năng #}
+{# hiển thị/ẩn mật khẩu. #}
+{# ========================================================= #}
+{% block scripts %}
+{{ super() }} {# Nhúng script từ base.html #}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // =========================================================
+        // KHỐI 1: LẤY THAM CHIẾU ĐẾN CÁC ELEMENT
+        // =========================================================
+        const loginForm = document.getElementById("loginForm");
+        const emailInput = document.getElementById("email");
+        const passwordInput = document.getElementById("passwordLogin");
+        const emailError = document.getElementById("emailErrorLogin"); // Div hiển thị lỗi email
+        const passwordError = document.getElementById("passwordErrorLogin"); // Div hiển thị lỗi password
+        const togglePasswordBtn = document.getElementById("togglePasswordLogin"); // Nút con mắt
+
+        // =========================================================
+        // KHỐI 2: HÀM TIỆN ÍCH (HELPER FUNCTIONS) CHO VALIDATION
+        // =========================================================
+
+        /** Hiển thị lỗi validation cho input */
+        function showError(inputElement, errorElement, message) {
+            inputElement.classList.add("is-invalid"); // Thêm class Bootstrap
+            if (errorElement) errorElement.textContent = message; // Cập nhật text lỗi
+        }
+        /** Xóa trạng thái lỗi validation khỏi input */
+        function clearError(inputElement, errorElement) {
+            inputElement.classList.remove("is-invalid"); // Xóa class Bootstrap
+        }
+
+        // =========================================================
+        // KHỐI 3: CÁC HÀM VALIDATION CHO TỪNG TRƯỜNG
+        // =========================================================
+
+        /** Kiểm tra email không rỗng và đúng định dạng cơ bản */
+        function validateLoginEmail() {
+            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // Regex đơn giản
+            const emailValue = emailInput.value.trim();
+            if (emailValue === "") { // Kiểm tra rỗng
+                showError(emailInput, emailError, "Vui lòng nhập địa chỉ email.");
+                return false;
+            } else if (!emailPattern.test(emailValue)) { // Kiểm tra định dạng
+                showError(emailInput, emailError, "Địa chỉ email không đúng định dạng.");
+                return false;
+            }
+            clearError(emailInput, emailError); // Hợp lệ
+            return true;
+        }
+
+        /** Kiểm tra mật khẩu không rỗng và đủ độ dài (ít nhất 6 ký tự) */
+        function validateLoginPassword() {
+            const passwordValue = passwordInput.value; // Không trim() mật khẩu
+            if (passwordValue === "") { // Kiểm tra rỗng
+                showError(passwordInput, passwordError, "Vui lòng nhập mật khẩu.");
+                return false;
+            } else if (passwordValue.length < 6) { // Kiểm tra độ dài
+                showError(passwordInput, passwordError, "Mật khẩu phải có ít nhất 6 ký tự.");
+                return false;
+            }
+            clearError(passwordInput, passwordError); // Hợp lệ
+            return true;
+        }
+
+        // =========================================================
+        // KHỐI 4: CHỨC NĂNG HIỂN THỊ/ẨN MẬT KHẨU (NÚT CON MẮT)
+        // =========================================================
+
+        /** Gắn sự kiện click cho nút toggle password */
+        function addTogglePasswordVisibility(buttonElement, inputElement) {
+            if (!buttonElement || !inputElement) return; // Kiểm tra element
+            buttonElement.addEventListener("click", function () {
+                const icon = this.querySelector("i");
+                const currentType = inputElement.getAttribute("type");
+                // Chuyển đổi type của input và thay đổi icon con mắt
+                if (currentType === "password") {
+                    inputElement.setAttribute("type", "text"); // Hiện mật khẩu
+                    icon.classList.replace("fa-eye", "fa-eye-slash"); // Đổi icon
+                } else {
+                    inputElement.setAttribute("type", "password"); // Ẩn mật khẩu
+                    icon.classList.replace("fa-eye-slash", "fa-eye"); // Đổi icon
+                }
+            });
+        }
+        // Áp dụng chức năng cho nút con mắt của form đăng nhập
+        addTogglePasswordVisibility(togglePasswordBtn, passwordInput);
+
+        // =========================================================
+        // KHỐI 5: GẮN SỰ KIỆN VALIDATION VÀO FORM VÀ INPUTS
+        // =========================================================
+        if (loginForm) { // Chỉ chạy nếu form tồn tại
+            // --- Gắn sự kiện kiểm tra khi người dùng rời khỏi ô input (blur) ---
+            emailInput.addEventListener("blur", validateLoginEmail);
+            passwordInput.addEventListener("blur", validateLoginPassword);
+            // --- Gắn sự kiện kiểm tra mật khẩu ngay khi đang gõ (input) ---
+            passwordInput.addEventListener("input", validateLoginPassword); // Kiểm tra độ dài khi gõ
+
+            // --- Gắn sự kiện kiểm tra tổng thể trước khi submit form ---
+            loginForm.addEventListener("submit", function (event) {
+                // Chạy lại các hàm validation
+                const isEmailValid = validateLoginEmail();
+                const isPasswordValid = validateLoginPassword();
+
+                // Nếu có trường không hợp lệ -> ngăn submit và focus vào lỗi đầu tiên
+                if (!isEmailValid || !isPasswordValid) {
+                    event.preventDefault(); // Ngăn form gửi đi
+                    event.stopPropagation(); // Ngăn sự kiện lan truyền thêm
+                    // Tìm input đầu tiên có lỗi và focus vào nó
+                    const firstInvalidInput = loginForm.querySelector(".is-invalid");
+                    if (firstInvalidInput) {
+                        firstInvalidInput.focus();
+                    }
+                }
+                // Nếu tất cả hợp lệ, form sẽ được submit bình thường.
+            }); // Kết thúc event listener submit
+        } // Kết thúc if (loginForm)
+    }); // Kết thúc DOMContentLoaded
+</script>
+{% endblock %} {# Kết thúc block scripts #}

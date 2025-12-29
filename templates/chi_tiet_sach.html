@@ -1,0 +1,525 @@
+{% extends "base.html" %} {% block title %}{{ sach.tieu_de }}{% endblock %}
+
+{# ========================================================= #}
+{# BLOCK CONTENT: Nội dung chính của trang Chi Tiết Sách #}
+{# Hiển thị thông tin chi tiết về sách, ảnh bìa, tác giả, thể loại, #}
+{# đánh giá, bình luận, nút mượn sách và sách liên quan. #}
+{# ========================================================= #}
+{% block content %}
+{# ========================================================= #}
+
+
+{# ========================================================= #}
+{# KHỐI HIỂN THỊ THÔNG TIN CHI TIẾT SÁCH #}
+{# ========================================================= #}
+<div class="row">
+    {# --- Cột Ảnh Bìa --- #}
+    <div class="col-lg-3 text-center mb-3">
+        <img src="{{ url_for('static', filename='uploads/covers/' ~ (sach.anh_bia | default('default_cover.jpg'))) }}"
+            class="img-fluid rounded shadow-sm" alt="{{ sach.tieu_de }}" style="max-height: 400px; object-fit: cover" />
+    </div>
+
+    {# --- Cột Thông Tin Sách, Đánh Giá, Nút Mượn --- #}
+    <div class="col-lg-5 mb-3">
+        <h1>{{ sach.tieu_de }}</h1> {# Tiêu đề sách #}
+        <p class="lead">Tác giả: <strong>{{ sach.ten_tac_gia }}</strong></p>
+        <hr />
+        {# Danh sách thông tin cơ bản #}
+        <ul class="list-unstyled">
+            <li><strong>Thể loại:</strong> {{ sach.ten_the_loai }}</li>
+            <li><strong>Năm xuất bản:</strong> {{ sach.nam_xuat_ban }}</li>
+            <li><strong>Số trang:</strong> {{ sach.so_trang if sach.so_trang and sach.so_trang > 0 else 'Chưa cập nhật'
+                }}</li>
+            <li><strong>Tổng lượt mượn:</strong> {{ luot_muon }}</li>
+            <li><strong>Hiện còn:</strong> <span
+                    class="badge bg-{% if sach.so_luong > 0 %}success{% else %}danger{% endif %}">{{ sach.so_luong
+                    }}</span></li> {# Badge số lượng còn #}
+        </ul>
+
+        {# --- Hiển thị Đánh Giá Trung Bình --- #}
+        <div class="d-flex align-items-center mb-3">
+            <span class="rating-stars me-2" id="averageRatingStars"></span> {# Sao trung bình (JS render) #}
+            <span id="averageRatingText"> {# Text điểm trung bình và số lượt #}
+                {% if avg_rating > 0 %} {{ avg_rating }}/5 ({{ sach.so_luot_danh_gia }} đánh giá)
+                {% else %} Chưa có đánh giá {% endif %}
+            </span>
+        </div>
+
+        {# --- Khối Đánh Giá Của Người Dùng (chỉ hiển thị cho độc giả) --- #}
+        {% if current_user.vai_tro == 'doc_gia' %}
+        <div class="mt-2">
+            <h6 class="mb-1">Đánh giá của bạn:</h6>
+            <div class="rating-input d-flex align-items-center" data-sach-id="{{ sach.id_sach }}"> {# Lưu ID sách cho JS
+                #}
+                <div class="rating-stars" id="userRatingStars"> {# Container sao của user #}
+                    {# Tạo 5 sao (input radio ẩn + label icon), tô màu dựa trên `user_rating` từ server #}
+                    {% for i in range(5, 0, -1) %} {# Lặp ngược từ 5 về 1 #}
+                    <input type="radio" name="rating" id="star{{i}}" value="{{i}}" {% if i==user_rating %}checked{%
+                        endif %}>
+                    <label for="star{{i}}" class="star" title="{{i}} sao">
+                        <i class="{% if i <= user_rating %}fas fa-star{% else %}far fa-star{% endif %}"></i> {# fas:
+                        đầy, far: rỗng #}
+                    </label>
+                    {% endfor %}
+                </div>
+                <span class="ms-2 text-muted" id="userRatingStatus"></span> {# Nơi hiển thị trạng thái gửi đánh giá (JS
+                cập nhật) #}
+            </div>
+        </div>
+        {% endif %}
+
+        {# --- Hiển thị Mô tả sách (nếu có) --- #}
+        {% if sach.mo_ta %}
+        <div class="mt-3">
+            <h5>Mô tả</h5>
+            <p style="white-space: pre-wrap">{{ sach.mo_ta }}</p> {# pre-wrap để giữ định dạng xuống dòng #}
+        </div>
+        <hr />
+        {% endif %}
+
+        {# --- Nút Mượn Sách và Yêu Thích --- #}
+        <div class="input-group mt-3">
+            {# Nút Mượn Sách (mở modal) - Vô hiệu hóa nếu hết sách #}
+            {% if sach.so_luong > 0 %}
+            <button type="button" class="btn btn-primary btn-lg" style="width: 85%" data-bs-toggle="modal"
+                data-bs-target="#confirmMuonSachModal">
+                📚 Mượn Sách Này
+            </button>
+            {% else %}
+            <button type="button" class="btn btn-secondary btn-lg" style="width: 85%" disabled> Đã hết </button>
+            {% endif %}
+            {# Nút Yêu Thích (AJAX) #}
+            <button class="btn btn-outline-secondary btn-lg btn-toggle-favorite" type="button" style="width: 15%"
+                data-id="{{ sach.id_sach }}" title="Thêm vào yêu thích">
+                <i class="fas fa-heart btn-favorite {% if sach.is_favorite %}is-favorite{% endif %}"></i> {# Thêm class
+                is-favorite nếu đã thích #}
+            </button>
+        </div>
+    </div> {# Kết thúc cột thông tin sách #}
+
+    {# --- Cột Bình Luận --- #}
+    <div class="col-lg-4 mb-3">
+        <h4>Bình Luận Của Độc Giả</h4>
+        <div class="card">
+            {# Danh sách bình luận (cho phép cuộn) #}
+            <div class="card-body comment-list p-2" id="commentListContainer"> {# ID cho JS thêm bình luận mới #}
+                {% for bl in binh_luan %} {# Lặp qua danh sách bình luận từ context #}
+                <div class="border-bottom p-2 comment-item"> {# Class cho JS đếm #}
+                    <strong>{{ bl.ho_ten }}</strong> {# Tên người bình luận #}
+                    <small class="text-muted float-end">{{ bl.ngay_dang.strftime('%d-%m-%Y') }}</small> {# Ngày đăng #}
+                    <p class="mb-0 mt-1">{{ bl.noi_dung }}</p> {# Nội dung #}
+                </div>
+                {% else %} {# Hiển thị nếu chưa có bình luận #}
+                <p class="text-center text-muted p-3" id="noCommentMessage"> {# ID cho JS ẩn đi #}
+                    Chưa có bình luận nào. Hãy là người đầu tiên!
+                </p>
+                {% endfor %}
+            </div>
+            {# Form thêm bình luận mới (AJAX) #}
+            <div class="card-footer">
+                <form action="{{ url_for('core.them_binh_luan', id_sach=sach.id_sach) }}" method="POST"
+                    id="commentForm"> {# ID cho JS #}
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" /> {# CSRF token #}
+                    <div class="input-group">
+                        <input type="text" class="form-control" name="noi_dung" placeholder="Viết bình luận..."
+                            required />
+                        <button class="btn btn-outline-primary" type="submit"> Gửi </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div> {# Kết thúc cột bình luận #}
+</div> {# Kết thúc row chính #}
+
+<hr class="my-4" />
+
+{# ========================================================= #}
+{# KHỐI SÁCH LIÊN QUAN (Cuộn ngang) #}
+{# ========================================================= #}
+<div class="row">
+    <div class="col-12">
+        <h2>Sách Cùng Thể Loại & Tác Giả</h2>
+        <div class="scrolling-wrapper"> {# Container cho phép cuộn ngang #}
+            {% for sach_lq in sach_lien_quan %} {# Lặp qua danh sách sách liên quan #}
+            <div class="book-card"> {# Thẻ sách liên quan #}
+                {# Link bao phủ toàn bộ thẻ, dẫn đến trang chi tiết sách liên quan #}
+                <a href="{{ url_for('core.chi_tiet_sach', id_sach=sach_lq.id_sach, slug=slugify(sach_lq.tieu_de)) }}"
+                    class="book-link stretched-link">
+                    {# Nút yêu thích nhỏ (AJAX) #}
+                    <button class="btn btn-light btn-sm btn-favorite-card btn-toggle-favorite"
+                        data-id="{{ sach_lq.id_sach }}" onclick="event.preventDefault(); event.stopPropagation();"
+                        title="Thêm vào yêu thích">
+                        <i class="fas fa-heart {% if sach_lq.is_favorite %}is-favorite{% endif %}"></i>
+                    </button>
+                    {# Ảnh bìa #}
+                    <img src="{{ url_for('static', filename='uploads/covers/' ~ (sach.anh_bia | default('default_cover.jpg'))) }}"
+                        class="card-img-top" alt="{{ sach_lq.tieu_de }}" />
+                    {# Tiêu đề (giới hạn 2 dòng) #}
+                    <div class="card-body">
+                        <h6 class="card-title">{{ sach_lq.tieu_de }} {% if sach_lq.ten_tac_gia %}({{ sach_lq.ten_tac_gia
+                            }}){% endif %}</h6>
+                    </div>
+                </a>
+            </div>
+            {% else %} {# Hiển thị nếu không có sách liên quan #}
+            <p class="text-muted ms-2">Không tìm thấy sách liên quan.</p>
+            {% endfor %}
+        </div> {# Kết thúc scrolling-wrapper #}
+    </div>
+</div>
+
+{# ========================================================= #}
+{# MODAL ĐẶT LỊCH MƯỢN SÁCH #}
+{# Hiển thị khi người dùng click nút "Mượn Sách Này". #}
+{# Chứa form để nhập số lượng, ngày lấy, ngày trả. Submit bằng AJAX. #}
+{# ========================================================= #}
+<div class="modal fade" id="confirmMuonSachModal" tabindex="-1" aria-labelledby="modalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            {# Form đặt lịch mượn sách, action trỏ đến route xử lý mượn sách của user #}
+            <form id="modalMuonSachForm" method="POST"
+                action="{{ url_for('profile.user_muon_sach', id_sach=sach.id_sach) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" /> {# CSRF token #}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalLabel"> Đặt Lịch Mượn Sách </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Sách:</strong> {{ sach.tieu_de }}</p>
+                    <p><strong>Tác giả:</strong> {{ sach.ten_tac_gia }}</p>
+                    {# Input số lượng muốn mượn #}
+                    <div class="mb-3">
+                        <label for="so_luong_muon" class="form-label">Số lượng muốn mượn</label>
+                        <input type="number" class="form-control" id="so_luong_muon" name="so_luong_muon" min="1"
+                            value="1" max="{{ sach.so_luong }}" required />
+                    </div>
+                    {# Input ngày dự kiến lấy sách #}
+                    <div class="mb-3">
+                        <label for="ngay_lay_sach" class="form-label">Ngày dự kiến lấy sách</label>
+                        <input type="date" class="form-control" id="ngay_lay_sach" name="ngay_lay_sach" required />
+                    </div>
+                    {# Input ngày dự kiến trả sách #}
+                    <div class="mb-3">
+                        <label for="ngay_tra_sach" class="form-label">Ngày dự kiến trả sách</label>
+                        <input type="date" class="form-control" id="ngay_tra_sach" name="ngay_tra_sach" required />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"> Hủy </button>
+                    <button type="submit" class="btn btn-primary"> Xác Nhận Đặt Lịch </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %} {# Kết thúc block content #}
+
+{# ========================================================= #}
+{# BLOCK SCRIPTS: Chứa mã JavaScript cho trang #}
+{# Bao gồm xử lý modal mượn sách, gửi bình luận, đánh giá sao, yêu thích. #}
+{# ========================================================= #}
+{% block scripts %}
+{{ super() }} {# Nhúng script từ base.html (như getCsrfToken, showNotification, initializeFavoriteButtons) #}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // =========================================================
+        // KHỐI 1: XỬ LÝ MODAL MƯỢN SÁCH (ĐẶT LỊCH) - AJAX
+        // =========================================================
+        const confirmMuonSachModalEl = document.getElementById('confirmMuonSachModal');
+        if (confirmMuonSachModalEl) {
+            const confirmMuonSachModal = new bootstrap.Modal(confirmMuonSachModalEl); // Khởi tạo modal
+            const modalForm = confirmMuonSachModalEl.querySelector('#modalMuonSachForm'); // Form trong modal
+            const submitButton = modalForm.querySelector('button[type="submit"]'); // Nút submit
+            const ngayLayInput = modalForm.querySelector('#ngay_lay_sach'); // Input ngày lấy
+            const ngayTraInput = modalForm.querySelector('#ngay_tra_sach'); // Input ngày trả
+            const soLuongInput = modalForm.querySelector('#so_luong_muon'); // Input số lượng
+
+            // --- Sự kiện trước khi modal hiển thị: Reset form và đặt giá trị mặc định ---
+            confirmMuonSachModalEl.addEventListener('show.bs.modal', function (event) {
+                const today = new Date().toISOString().split('T')[0]; // Lấy ngày hôm nay
+                ngayLayInput.min = today; // Ngày lấy sớm nhất là hôm nay
+                ngayLayInput.value = ''; // Xóa giá trị cũ
+                ngayTraInput.value = ''; // Xóa giá trị cũ
+                ngayTraInput.min = null; // Xóa ràng buộc ngày trả cũ
+                soLuongInput.value = 1; // Reset số lượng về 1
+                submitButton.disabled = false; // Kích hoạt lại nút
+                submitButton.innerHTML = 'Xác Nhận Đặt Lịch'; // Reset text nút
+            });
+
+            // --- Sự kiện thay đổi ngày lấy: Cập nhật ngày trả tối thiểu ---
+            ngayLayInput.addEventListener('change', function () {
+                if (ngayLayInput.value) { // Nếu có ngày lấy
+                    let nextDay = new Date(ngayLayInput.value);
+                    nextDay.setDate(nextDay.getDate() + 1); // Ngày trả tối thiểu là ngày hôm sau
+                    ngayTraInput.min = nextDay.toISOString().split('T')[0]; // Cập nhật min
+                    // Nếu ngày trả hiện tại không hợp lệ -> đặt lại
+                    if (ngayTraInput.value && ngayTraInput.value < ngayTraInput.min) {
+                        ngayTraInput.value = ngayTraInput.min;
+                    }
+                } else {
+                    ngayTraInput.min = null; // Xóa min nếu ngày lấy rỗng
+                }
+            });
+
+            // --- Xử lý submit form mượn sách bằng AJAX ---
+            modalForm.addEventListener('submit', async function (event) {
+                event.preventDefault(); // Ngăn submit truyền thống
+                // Hiển thị loading
+                const btnOriginalText = submitButton.innerHTML;
+                submitButton.disabled = true;
+                submitButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Đang xử lý...`;
+                // Chuẩn bị dữ liệu và header
+                const formData = new FormData(modalForm);
+                const csrfToken = getCsrfToken();
+                const headers = { 'X-CSRFToken': csrfToken };
+
+                try {
+                    // Gửi request POST
+                    const response = await fetch(modalForm.action, { method: 'POST', body: formData, headers: headers });
+                    const data = await response.json();
+                    confirmMuonSachModal.hide(); // Đóng modal
+
+                    if (response.ok && data.success) { // Nếu thành công
+                        showNotification(data.message, 'success'); // Hiển thị thông báo
+
+                        // --- Cập nhật số lượng sách còn lại trên giao diện ---
+                        const currentQuantityBadge = document.querySelector('.list-unstyled .badge'); // Tìm badge số lượng
+                        if (currentQuantityBadge) {
+                            let currentQuantity = parseInt(currentQuantityBadge.textContent) || 0;
+                            const borrowedQuantity = parseInt(soLuongInput.value) || 0;
+                            const newQuantity = Math.max(0, currentQuantity - borrowedQuantity); // Tính số lượng mới
+                            currentQuantityBadge.textContent = newQuantity; // Cập nhật text badge
+                            if (newQuantity <= 0) { // Nếu hết sách
+                                // Đổi màu badge thành đỏ
+                                currentQuantityBadge.classList.remove('bg-success');
+                                currentQuantityBadge.classList.add('bg-danger');
+                                // Vô hiệu hóa nút mượn chính
+                                const mainBorrowButton = document.querySelector('button[data-bs-target="#confirmMuonSachModal"]');
+                                if (mainBorrowButton) {
+                                    mainBorrowButton.disabled = true;
+                                    mainBorrowButton.textContent = 'Đã hết';
+                                    mainBorrowButton.classList.replace('btn-primary', 'btn-secondary');
+                                }
+                            }
+                        }
+                    } else { // Nếu lỗi từ server
+                        throw new Error(data.error || `Lỗi server: ${response.status}.`);
+                    }
+                } catch (error) { // Xử lý lỗi
+                    console.error('Lỗi khi đặt lịch mượn sách:', error);
+                    showNotification(`Lỗi: ${error.message}`, 'danger');
+                } finally { // Luôn chạy
+                    // Kích hoạt lại nút submit
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = btnOriginalText;
+                }
+            });
+        } // Kết thúc if (confirmMuonSachModalEl)
+
+        // =========================================================
+        // KHỐI 2: XỬ LÝ GỬI BÌNH LUẬN - AJAX
+        // =========================================================
+        const commentForm = document.getElementById('commentForm');
+        if (commentForm) {
+            const commentInput = commentForm.querySelector('input[name="noi_dung"]'); // Input nội dung
+            const commentListContainer = document.getElementById('commentListContainer'); // Vùng chứa danh sách
+            const noCommentMessage = document.getElementById('noCommentMessage'); // Thông báo "chưa có"
+            const commentSubmitButton = commentForm.querySelector('button[type="submit"]'); // Nút gửi
+
+            // --- Xử lý submit form bình luận bằng AJAX ---
+            commentForm.addEventListener('submit', async function (event) {
+                event.preventDefault(); // Ngăn submit truyền thống
+                const noiDung = commentInput.value.trim();
+                if (!noiDung) return; // Không gửi nếu rỗng
+
+                // Hiển thị loading
+                const btnOriginalHtml = commentSubmitButton.innerHTML; // Lưu lại HTML gốc (có thể là icon)
+                commentSubmitButton.disabled = true;
+                commentSubmitButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
+                // Chuẩn bị dữ liệu và header
+                const formData = new FormData(commentForm);
+                const csrfToken = getCsrfToken();
+                const headers = { 'X-CSRFToken': csrfToken };
+
+                try {
+                    // Gửi POST request
+                    const response = await fetch(commentForm.action, { method: 'POST', body: formData, headers: headers });
+                    const data = await response.json();
+
+                    if (response.ok && data.success) { // Nếu thành công
+                        showNotification(data.message, 'success');
+                        commentInput.value = ''; // Xóa input
+
+                        // --- Thêm bình luận mới vào danh sách (phía trên cùng) ---
+                        const newCommentHtml = `
+                            <div class="border-bottom p-2 comment-item">
+                                <strong>${data.user_name || 'Bạn'}</strong> {# Tên user #}
+                                <small class="text-muted float-end">${data.comment_date || 'Ngay bây giờ'}</small> {# Ngày #}
+                                <p class="mb-0 mt-1">${data.comment_content || noiDung}</p> {# Nội dung #}
+                            </div>`;
+                        // Thêm vào đầu danh sách (sau thẻ div card-body)
+                        commentListContainer.insertAdjacentHTML('afterbegin', newCommentHtml);
+
+                        // Ẩn thông báo "chưa có bình luận" nếu đang hiển thị
+                        if (noCommentMessage && noCommentMessage.offsetParent !== null) { // Kiểm tra xem có đang hiển thị không
+                            noCommentMessage.style.display = 'none';
+                        }
+                    } else { // Nếu lỗi từ server
+                        throw new Error(data.error || `Lỗi server: ${response.status}.`);
+                    }
+                } catch (error) { // Xử lý lỗi
+                    console.error('Lỗi khi gửi bình luận:', error);
+                    showNotification(`Lỗi gửi bình luận: ${error.message}`, 'danger');
+                } finally { // Luôn chạy
+                    // Kích hoạt lại nút gửi
+                    commentSubmitButton.disabled = false;
+                    commentSubmitButton.innerHTML = btnOriginalHtml; // Trả lại HTML gốc
+                }
+            });
+        } // Kết thúc if (commentForm)
+
+        // =========================================================
+        // KHỐI 3: XỬ LÝ SAO ĐÁNH GIÁ - AJAX VÀ HIỆU ỨNG HOVER
+        // =========================================================
+        const avgRatingStarsContainer = document.getElementById('averageRatingStars'); // Sao trung bình
+        const avgRatingTextSpan = document.getElementById('averageRatingText'); // Text trung bình
+        const userRatingStarsContainer = document.getElementById('userRatingStars'); // Sao của user
+        const userRatingStatusSpan = document.getElementById('userRatingStatus'); // Text trạng thái
+
+        /** Hàm render các icon sao (đầy/rỗng) vào container */
+        function renderStars(container, rating, readOnly = false) {
+            if (!container) return;
+            container.innerHTML = ''; // Xóa sao cũ
+            let avgRounded = Math.round(rating * 2) / 2; // Làm tròn đến 0.5 (cho nửa sao nếu cần)
+            for (let i = 1; i <= 5; i++) {
+                let starClass = (i <= avgRounded) ? 'fas fa-star' : 'far fa-star'; // Chọn icon đầy hoặc rỗng
+                // (Có thể thêm 'fa-star-half-alt' nếu avgRounded có .5)
+                const starIcon = document.createElement('i');
+                starIcon.className = starClass;
+                if (!readOnly) starIcon.style.margin = '0 1px'; // Thêm margin nếu là sao tương tác
+                container.appendChild(starIcon);
+            }
+        }
+
+        /** Hàm cập nhật giao diện sau khi đánh giá thành công */
+        function updateUserRatingUI(newAvgRating, newRatingCount, userNewRating) {
+            // Cập nhật sao và text trung bình
+            renderStars(avgRatingStarsContainer, newAvgRating, true); // Render lại sao trung bình (read-only)
+            if (avgRatingTextSpan) { // Cập nhật text
+                avgRatingTextSpan.textContent = (newRatingCount > 0)
+                    ? `${newAvgRating.toFixed(1)}/5 (${newRatingCount} đánh giá)`
+                    : 'Chưa có đánh giá';
+            }
+            // Cập nhật sao của người dùng
+            if (userRatingStarsContainer) {
+                const labels = userRatingStarsContainer.querySelectorAll('label.star');
+                labels.forEach(label => {
+                    const starInput = document.getElementById(label.getAttribute('for')); // Radio button tương ứng
+                    const starIcon = label.querySelector('i'); // Icon sao
+                    if (starInput && starIcon) {
+                        const starValue = parseInt(starInput.value);
+                        starInput.checked = (starValue === userNewRating); // Check đúng radio
+                        // Cập nhật icon đầy/rỗng
+                        starIcon.className = (starValue <= userNewRating) ? 'fas fa-star' : 'far fa-star';
+                        label.classList.add('rated'); // Đánh dấu đã đánh giá
+                    }
+                });
+            }
+        }
+
+        // Render sao trung bình ban đầu khi tải trang
+        const initialAvgRating = parseFloat('{{ avg_rating | default (0) }}'); // Lấy điểm trung bình từ context
+        renderStars(avgRatingStarsContainer, initialAvgRating, true); // Render sao chỉ đọc
+
+        // --- Gắn sự kiện cho sao đánh giá của người dùng (nếu là độc giả) ---
+        if (userRatingStarsContainer) {
+            const sachId = userRatingStarsContainer.closest('.rating-input').dataset.sachId; // Lấy ID sách
+            const stars = userRatingStarsContainer.querySelectorAll('label.star'); // Lấy tất cả label sao
+
+            stars.forEach(starLabel => {
+                // --- Sự kiện click vào sao: Gửi đánh giá AJAX ---
+                starLabel.addEventListener('click', async function (event) {
+                    // Label tự động check radio button, không cần preventDefault
+                    const ratingValue = parseInt(this.getAttribute('for').replace('star', '')); // Lấy điểm (1-5)
+                    if (!ratingValue || !sachId) return;
+
+                    // Hiển thị trạng thái và vô hiệu hóa sao
+                    if (userRatingStatusSpan) userRatingStatusSpan.textContent = 'Đang gửi...';
+                    stars.forEach(s => s.style.pointerEvents = 'none'); // Ngăn click liên tục
+                    // Chuẩn bị dữ liệu và header
+                    const formData = new FormData(); formData.append('rating', ratingValue);
+                    const csrfToken = getCsrfToken(); const headers = { 'X-CSRFToken': csrfToken };
+
+                    try {
+                        // Gửi POST request đến API đánh giá
+                        const response = await fetch(`/api/sach/${sachId}/rate`, { method: 'POST', body: formData, headers: headers });
+                        const data = await response.json();
+                        if (response.ok && data.success) { // Nếu thành công
+                            showNotification(data.message, 'success');
+                            // Cập nhật giao diện (sao trung bình, sao user, text)
+                            updateUserRatingUI(data.avg_rating, data.rating_count, ratingValue);
+                            if (userRatingStatusSpan) userRatingStatusSpan.textContent = 'Đã lưu!';
+                            // Xóa trạng thái sau 2 giây
+                            setTimeout(() => { if (userRatingStatusSpan) userRatingStatusSpan.textContent = ''; }, 2000);
+                        } else { // Nếu lỗi
+                            throw new Error(data.error || 'Lỗi không xác định');
+                        }
+                    } catch (error) { // Xử lý lỗi
+                        console.error('Lỗi khi đánh giá:', error);
+                        showNotification(`Lỗi đánh giá: ${error.message}`, 'danger');
+                        if (userRatingStatusSpan) userRatingStatusSpan.textContent = 'Lỗi!';
+                        setTimeout(() => { if (userRatingStatusSpan) userRatingStatusSpan.textContent = ''; }, 2000);
+                        // Cần thêm logic reset sao về trạng thái cũ nếu lỗi
+                        const currentRatingBeforeClick = parseInt('{{ user_rating | default(0) }}');
+                        updateUserRatingUI(initialAvgRating, parseInt('{{ sach.so_luot_danh_gia | default(0) }}'), currentRatingBeforeClick);
+
+                    } finally { // Luôn chạy
+                        // Kích hoạt lại các sao
+                        stars.forEach(s => s.style.pointerEvents = '');
+                    }
+                }); // Kết thúc event click
+
+                // --- Hiệu ứng hover cho sao ---
+                starLabel.addEventListener('mouseover', function () {
+                    // if (this.classList.contains('rated')) return; // Bỏ qua nếu đã đánh giá
+                    const ratingValue = parseInt(this.getAttribute('for').replace('star', ''));
+                    // Tô màu các sao từ đầu đến sao đang hover
+                    stars.forEach(s => {
+                        const val = parseInt(s.getAttribute('for').replace('star', ''));
+                        const icon = s.querySelector('i');
+                        icon.className = (val <= ratingValue) ? 'fas fa-star hovered' : 'far fa-star hovered'; // Thêm class hovered
+                    });
+                });
+
+                // --- Reset hiệu ứng hover khi chuột rời khỏi ---
+                starLabel.addEventListener('mouseout', function () {
+                    // if (this.classList.contains('rated')) return;
+                    let currentCheckedValue = 0; // Tìm điểm hiện tại đã chọn (nếu có)
+                    const checkedInput = userRatingStarsContainer.querySelector('input[name="rating"]:checked');
+                    if (checkedInput) { currentCheckedValue = parseInt(checkedInput.value); }
+                    // Reset màu sao theo điểm đã chọn
+                    stars.forEach(s => {
+                        const val = parseInt(s.getAttribute('for').replace('star', ''));
+                        const icon = s.querySelector('i');
+                        icon.classList.remove('hovered'); // Xóa class hovered
+                        icon.className = (val <= currentCheckedValue) ? 'fas fa-star' : 'far fa-star'; // Đặt lại fas/far
+                    });
+                });
+            }); // Kết thúc lặp qua các sao
+        } // Kết thúc if (userRatingStarsContainer)
+
+        // =========================================================
+        // KHỐI 4: KHỞI TẠO NÚT YÊU THÍCH
+        // =========================================================
+        // Gọi hàm initializeFavoriteButtons từ base.html để gắn sự kiện AJAX
+        // cho tất cả các nút yêu thích trên trang (cả nút lớn và nút nhỏ).
+        if (typeof initializeFavoriteButtons === 'function') {
+            initializeFavoriteButtons();
+        } else {
+            console.error("Hàm initializeFavoriteButtons không tồn tại trong base.html");
+        }
+
+    }); // Kết thúc DOMContentLoaded
+</script>
+{% endblock %} {# Kết thúc block scripts #}

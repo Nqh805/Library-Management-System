@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+{% block title %}Chi Tiết Sách (Admin): {{ sach.tieu_de }}{% endblock %}
+
+{# ========================================================= #}
+{# BLOCK CONTENT: Nội dung chính của trang chi tiết sách (Admin) #}
+{# ========================================================= #}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Chi Tiết Sách: {{ sach.tieu_de }}</h1>
+    <div>
+        {# Nút khôi phục chỉ hiển thị nếu sách đang bị ẩn #}
+        {% if sach.trang_thai == 'da_an' %}
+        <span class="badge bg-danger p-2 me-2">ĐÃ BỊ ẨN</span>
+        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#confirmRestoreModal">
+            Khôi Phục Sách
+        </button>
+        {% endif %}
+        {# Nút sửa luôn hiển thị #}
+        <a href="{{ url_for('admin.sua_sach', id_sach=sach.id_sach) }}" class="btn btn-warning">✏️ Sửa Sách Này</a>
+        {# Nút ẩn chỉ hiển thị nếu sách đang hoạt động #}
+        {% if sach.trang_thai == 'hoat_dong' %}
+        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal">
+            🗑️ Ẩn Sách Này
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+{# --- Khu vực hiển thị thông tin sách và thống kê --- #}
+<div class="row mb-4">
+    <div class="col-md-3 text-center">
+        {# Ảnh bìa sách #}
+        <img src="{{ url_for('static', filename='uploads/covers/' ~ (sach.anh_bia | default('default_cover.jpg'))) }}"
+            class="img-fluid rounded shadow-sm" alt="{{ sach.tieu_de }}" style="max-height: 350px; object-fit: cover;">
+    </div>
+    <div class="col-md-5">
+        <h4>Thông Tin Cơ Bản</h4>
+        {# Danh sách thông tin cơ bản #}
+        <ul class="list-group">
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <strong>ID Sách:</strong>
+                <span class="badge bg-secondary rounded-pill">{{ sach.id_sach }}</span>
+            </li>
+            <li class="list-group-item"><strong>Tác giả:</strong> {{ sach.ten_tac_gia | default('N/A') }}</li>
+            <li class="list-group-item"><strong>Thể loại:</strong> {{ sach.ten_the_loai | default('N/A') }}</li>
+            <li class="list-group-item"><strong>Năm xuất bản:</strong> {{ sach.nam_xuat_ban | default('N/A') }}</li>
+            <li class="list-group-item"><strong>Số trang:</strong> {{ sach.so_trang if sach.so_trang and sach.so_trang >
+                0 else 'N/A' }}</li>
+        </ul>
+    </div>
+    <div class="col-md-4">
+        <h4>Thống Kê (Admin)</h4>
+        {# Danh sách các số liệu thống kê dành cho admin #}
+        <ul class="list-group">
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                Số lượng trong kho (Có sẵn) {# Số lượng ghi trong bảng Sach #}
+                <span class="badge bg-success rounded-pill">{{ stats.sach_trong_kho | default(0) }}</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                Số lượng đang mượn (Đã lấy) {# Tổng số lượng sách đang ở trạng thái 'Đang mượn' #}
+                <span class="badge bg-info text-dark rounded-pill">{{ stats.sach_dang_muon_sum | default(0) }}</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                Số lượng chờ duyệt (Đang giữ) {# Tổng số lượng sách đang ở trạng thái 'Đang chờ' #}
+                <span class="badge bg-warning text-dark rounded-pill">{{ stats.sach_cho_duyet_sum | default(0) }}</span>
+                {# Hiển thị số lượt đặt nếu khác tổng số lượng chờ #}
+                {% if stats.sach_cho_duyet_count != stats.sach_cho_duyet_sum %}
+                <small class="text-muted ms-1">({{ stats.sach_cho_duyet_count | default(0) }} lượt)</small>
+                {% endif %}
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <strong>Tổng số bản sao (Thư viện có)</strong> {# Tổng = kho + mượn + chờ #}
+                <span class="badge bg-primary rounded-pill">{{ stats.tong_so_ban_sao | default(0) }}</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                Tổng lượt mượn (Thành công) {# Tổng số lượt mượn có trạng thái 'Đang mượn' hoặc 'Đã trả' #}
+                <span class="badge bg-secondary rounded-pill">{{ stats.tong_luot_muon_thuc | default(0) }}</span>
+            </li>
+        </ul>
+    </div>
+</div>
+<hr>
+
+{# --- Khu vực hiển thị Lịch sử Mượn --- #}
+<div class="row mb-4">
+    <div class="col-12">
+        <h4>Lịch Sử Mượn (Toàn bộ)</h4>
+        <div style="max-height: 400px; overflow-y: auto;"> {# Giới hạn chiều cao và cho phép cuộn #}
+            <table class="table table-bordered table-striped">
+                <thead class="table-dark sticky-top"> {# sticky-top giữ header cố định khi cuộn #}
+                    <tr>
+                        <th>Người Mượn</th>
+                        <th>Số Lượng</th>
+                        <th>Ngày Mượn</th>
+                        <th>Ngày Hẹn Trả</th>
+                        <th>Ngày Trả Thực</th>
+                        <th>Trạng Thái</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in lich_su_muon %}
+                    <tr>
+                        <td>{{ item.ho_ten }}</td>
+                        <td>{{ item.so_luong }}</td>
+                        <td>{{ item.ngay_muon.strftime('%d-%m-%Y') if item.ngay_muon else 'N/A' }}</td>
+                        <td>{{ item.ngay_hen_tra.strftime('%d-%m-%Y') if item.ngay_hen_tra else 'N/A' }}</td>
+                        <td>{{ item.ngay_tra_thuc.strftime('%d-%m-%Y %H:%M') if item.ngay_tra_thuc else 'Chưa trả' }}
+                        </td>
+                        <td>
+                            {# Hiển thị badge trạng thái tương ứng #}
+                            {% if item.trang_thai == 'Đã trả' %} <span class="badge bg-success">Đã trả</span>
+                            {% elif item.trang_thai == 'Đã hủy' %} <span class="badge bg-danger">Đã hủy</span>
+                            {% elif item.trang_thai == 'Đang chờ' %} <span class="badge bg-secondary">Đang chờ</span>
+                            {% elif item.ngay_hen_tra and item.ngay_hen_tra < today_date %} <span
+                                class="badge bg-danger">Quá hạn</span>
+                                {% else %} <span class="badge bg-warning text-dark">Đang mượn</span>
+                                {% endif %}
+                        </td>
+                    </tr>
+                    {% else %} {# Hiển thị nếu chưa có lịch sử #}
+                    <tr>
+                        <td colspan="6" class="text-center">Sách này chưa từng được mượn.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<hr>
+
+{# --- Khu vực Quản lý Bình luận --- #}
+<div class="row">
+    <div class="col-12">
+        <h4>Quản Lý Bình Luận ({{ binh_luan|length }})</h4>
+        <div style="max-height: 400px; overflow-y: auto;"> {# Giới hạn chiều cao và cho phép cuộn #}
+            <ul class="list-group" id="commentList"> {# ID cho JS dễ tìm #}
+                {% for bl in binh_luan %}
+                <li class="list-group-item" id="comment-{{ bl.id_binh_luan }}"> {# ID duy nhất cho mỗi bình luận #}
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong>{{ bl.ho_ten }}</strong> {# Tên người bình luận #}
+                            <small class="text-muted ms-2">{{ bl.ngay_dang.strftime('%d-%m-%Y %H:%M') }}</small> {# Thời
+                            gian đăng #}
+                            <p class="mb-0 mt-1">{{ bl.noi_dung }}</p> {# Nội dung bình luận #}
+                        </div>
+                        {# Nút mở modal xác nhận xóa bình luận #}
+                        <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal"
+                            data-bs-target="#confirmDeleteCommentModal" data-comment-id="{{ bl.id_binh_luan }}"
+                            data-comment-author="{{ bl.ho_ten }}">
+                            Xóa
+                        </button>
+                    </div>
+                </li>
+                {% else %} {# Hiển thị nếu chưa có bình luận #}
+                <li class="list-group-item text-center text-muted" id="noCommentsMessage">Chưa có bình luận nào.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+{# --- Các Modal Xác Nhận --- #}
+
+{# Modal Xác nhận Ẩn Sách #}
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="modalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalLabel">Xác Nhận Ẩn Sách</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Bạn có chắc chắn muốn ẩn sách <strong>'{{ sach.tieu_de }}'</strong>? <br> Sách sẽ không hiển thị với độc
+                giả nhưng vẫn giữ nguyên lịch sử mượn.
+            </div>
+            <div class="modal-footer">
+                {# Form này sẽ được submit bằng JavaScript (AJAX) #}
+                <form id="deleteForm" method="POST" action="{{ url_for('admin.an_sach', id_sach=sach.id_sach) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-danger" id="confirmHideSubmitButton">Xác Nhận Ẩn</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Modal Xác nhận Khôi phục Sách #}
+<div class="modal fade" id="confirmRestoreModal" tabindex="-1" aria-labelledby="modalLabelRestore" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalLabelRestore">Xác Nhận Khôi Phục Sách</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Bạn có chắc chắn muốn khôi phục sách <strong>'{{ sach.tieu_de }}'</strong>? <br> Sách sẽ hiển thị trở
+                lại với độc giả.
+            </div>
+            <div class="modal-footer">
+                {# Form này sẽ được submit bằng JavaScript (AJAX) #}
+                <form id="restoreForm" method="POST"
+                    action="{{ url_for('admin.khoi_phuc_sach', id_sach=sach.id_sach) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-success" id="confirmRestoreSubmitButton">Xác Nhận Khôi
+                        Phục</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Modal Xác nhận Xóa Bình Luận #}
+<div class="modal fade" id="confirmDeleteCommentModal" tabindex="-1" aria-labelledby="commentModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="commentModalLabel">Xác Nhận Xóa Bình Luận</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Bạn có chắc chắn muốn xóa bình luận của <strong id="modalCommentAuthor"></strong>? Hành động này không
+                thể hoàn tác.
+            </div>
+            <div class="modal-footer">
+                {# Form này sẽ được submit bằng JavaScript (AJAX), action sẽ được JS cập nhật #}
+                <form id="deleteCommentForm" method="POST" action="">
+                    {# Gửi ID sách để redirect lại trang chi tiết sau khi xóa (phòng trường hợp JS lỗi) #}
+                    <input type="hidden" name="id_sach_redirect" value="{{ sach.id_sach }}">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-danger" id="confirmDeleteCommentSubmitButton">Xác Nhận
+                        Xóa</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{# ========================================================= #}
+{# BLOCK SCRIPTS: Chứa mã JavaScript cho trang #}
+{# ========================================================= #}
+{% block scripts %}
+{{ super() }} {# Nhúng các script chung từ base.html #}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+
+        // --- Hàm Helper: Lấy CSRF token ---
+        function getCsrfToken() {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            return meta ? meta.getAttribute('content') : null;
+        }
+
+        // --- Hàm Chung: Xử lý Submit Modal Ẩn/Khôi Phục Sách bằng AJAX ---
+        // Hàm này nhận vào modal, form, nút submit và thực hiện fetch request
+        async function handleBookStatusAction(modalElement, formElement, submitButton) {
+            formElement.addEventListener('submit', async function (event) {
+                event.preventDefault(); // Ngăn submit form mặc định
+                const actionUrl = formElement.action; // Lấy URL từ action của form
+                const originalButtonText = submitButton.innerHTML;
+                const csrfToken = getCsrfToken(); // Lấy token
+                const headers = { 'X-CSRFToken': csrfToken }; // Chuẩn bị header
+
+                // Vô hiệu hóa nút và hiển thị loading
+                submitButton.disabled = true;
+                submitButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Đang xử lý...`;
+
+                try {
+                    // Gửi request POST bằng Fetch API
+                    const response = await fetch(actionUrl, { method: 'POST', headers: headers });
+                    const data = await response.json(); // Đọc phản hồi JSON
+
+                    if (response.ok && data.success) {
+                        // Nếu thành công -> Tải lại trang để cập nhật trạng thái
+                        window.location.reload();
+                    } else {
+                        // Nếu lỗi -> Ném lỗi để được xử lý ở catch
+                        throw new Error(data.error || `Lỗi HTTP ${response.status}`);
+                    }
+                } catch (error) {
+                    // Xử lý lỗi (mạng hoặc logic)
+                    // Giả định hàm showNotification đã có trong base.html
+                    showNotification(`Đã xảy ra lỗi: ${error.message}. Vui lòng thử lại.`, 'danger');
+                } finally {
+                    // Luôn kích hoạt lại nút và đóng modal sau khi xử lý xong
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonText;
+                    const modalInstance = bootstrap.Modal.getInstance(modalElement);
+                    if (modalInstance) modalInstance.hide();
+                }
+            });
+        }
+
+        // --- Gắn sự kiện xử lý cho Modal Ẩn Sách ---
+        const hideModalElement = document.getElementById('confirmDeleteModal');
+        if (hideModalElement) {
+            const hideBookForm = document.getElementById('deleteForm');
+            const submitButton = document.getElementById('confirmHideSubmitButton');
+            handleBookStatusAction(hideModalElement, hideBookForm, submitButton); // Gọi hàm chung
+        }
+
+        // --- Gắn sự kiện xử lý cho Modal Khôi Phục Sách ---
+        const restoreModalElement = document.getElementById('confirmRestoreModal');
+        if (restoreModalElement) {
+            const restoreBookForm = document.getElementById('restoreForm');
+            const submitButton = document.getElementById('confirmRestoreSubmitButton');
+            handleBookStatusAction(restoreModalElement, restoreBookForm, submitButton); // Gọi hàm chung
+        }
+
+        // --- Xử lý Xóa Bình Luận bằng AJAX ---
+        const commentDeleteModal = document.getElementById('confirmDeleteCommentModal'); // Modal xác nhận
+        const deleteCommentForm = document.getElementById('deleteCommentForm'); // Form trong modal
+        const deleteCommentSubmitButton = document.getElementById('confirmDeleteCommentSubmitButton'); // Nút submit trong modal
+
+        if (commentDeleteModal && deleteCommentForm && deleteCommentSubmitButton) {
+            let currentCommentId = null; // Biến lưu ID bình luận đang xử lý
+
+            // Cập nhật thông tin modal trước khi hiển thị
+            commentDeleteModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget; // Nút "Xóa" đã được click
+                if (!button) return;
+                const commentId = button.getAttribute('data-comment-id'); // Lấy ID từ data attribute
+                const commentAuthor = button.getAttribute('data-comment-author'); // Lấy tên tác giả
+                currentCommentId = commentId; // Lưu ID
+
+                // Cập nhật tên tác giả trong modal
+                const modalAuthorSpan = commentDeleteModal.querySelector('#modalCommentAuthor');
+                if (modalAuthorSpan) modalAuthorSpan.textContent = commentAuthor || 'Người dùng này';
+                // Cập nhật action URL cho form trong modal
+                deleteCommentForm.action = `/admin/binhluan/xoa/${commentId}`;
+            });
+
+            // Gắn sự kiện submit AJAX cho form xóa bình luận
+            deleteCommentForm.addEventListener('submit', function (event) {
+                event.preventDefault(); // Ngăn submit mặc định
+                const formAction = deleteCommentForm.action;
+                const originalButtonText = deleteCommentSubmitButton.innerHTML;
+                const csrfToken = getCsrfToken();
+                const headers = { 'X-CSRFToken': csrfToken };
+
+                // Vô hiệu hóa nút và hiển thị loading
+                deleteCommentSubmitButton.disabled = true;
+                deleteCommentSubmitButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Đang xóa...`;
+
+                // Gửi request POST bằng Fetch API
+                fetch(formAction, { method: 'POST', headers: headers })
+                    .then(response => { // Xử lý response
+                        // Cố gắng đọc JSON, trả về {ok, data}
+                        return response.json().then(data => ({ ok: response.ok, data }))
+                            // Nếu không phải JSON, tạo đối tượng lỗi
+                            .catch(() => ({ ok: false, data: { error: `Lỗi server (${response.status})` } }));
+                    })
+                    .then(({ ok, data }) => { // Xử lý kết quả {ok, data}
+                        if (ok && data.success) {
+                            // Nếu thành công -> Xóa thẻ <li> tương ứng khỏi danh sách
+                            const listItemToRemove = document.getElementById(`comment-${currentCommentId}`);
+                            if (listItemToRemove) {
+                                listItemToRemove.remove(); // Xóa element khỏi DOM
+                                // Kiểm tra xem còn bình luận nào không, nếu không thì hiển thị lại thông báo "Chưa có bình luận"
+                                const commentList = document.getElementById('commentList');
+                                const noCommentsLi = document.getElementById('noCommentsMessage');
+                                // Điều kiện: còn đúng 1 thẻ li VÀ thẻ đó là thẻ thông báo
+                                if (commentList && noCommentsLi && commentList.children.length === 1 && commentList.firstElementChild.id === 'noCommentsMessage') {
+                                    noCommentsLi.style.display = ''; // Hiển thị lại (bỏ display: none nếu có)
+                                } else if (commentList && !commentList.querySelector('.list-group-item:not(#noCommentsMessage)')) {
+                                    // Trường hợp không còn thẻ bình luận nào khác
+                                    if (noCommentsLi) noCommentsLi.style.display = '';
+                                }
+                            } else {
+                                // Nếu không tìm thấy thẻ li -> tải lại trang để đảm bảo
+                                console.warn("Không tìm thấy thẻ li để xóa, sẽ reload.");
+                                window.location.reload();
+                            }
+                            // Đóng modal
+                            const modalInstance = bootstrap.Modal.getInstance(commentDeleteModal);
+                            if (modalInstance) modalInstance.hide();
+                            showNotification(data.message || "Xóa bình luận thành công.", 'success'); // Hiển thị thông báo
+                        } else {
+                            // Nếu lỗi -> Ném lỗi
+                            throw new Error(data.error || "Lỗi không xác định từ server.");
+                        }
+                    })
+                    .catch(error => { // Bắt lỗi (từ .then hoặc fetch)
+                        console.error('Lỗi khi xóa bình luận:', error);
+                        showNotification(`Đã xảy ra lỗi khi xóa bình luận: ${error.message}. Vui lòng thử lại.`, 'danger');
+                    })
+                    .finally(() => { // Luôn chạy sau khi fetch hoàn tất (thành công hoặc lỗi)
+                        // Kích hoạt lại nút submit
+                        deleteCommentSubmitButton.disabled = false;
+                        deleteCommentSubmitButton.innerHTML = originalButtonText;
+                    });
+            });
+        } // Kết thúc if (xử lý xóa bình luận)
+    }); // Kết thúc DOMContentLoaded
+</script>
+{% endblock %}

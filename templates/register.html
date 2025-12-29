@@ -1,0 +1,198 @@
+{% extends "base.html" %} {# Kế thừa layout từ base.html #}
+{% block title %}Đăng Ký{% endblock %} {# Đặt tiêu đề trang #}
+
+{# ========================================================= #}
+{# BLOCK CONTENT: Nội dung chính của trang Đăng Ký #}
+{# Hiển thị form cho phép người dùng mới tạo tài khoản. #}
+{# ========================================================= #}
+{% block content %}
+<div class="row justify-content-center"> {# Căn giữa form trên trang #}
+    <div class="col-md-6"> {# Giới hạn chiều rộng form #}
+        <h2>Tạo tài khoản</h2>
+
+        {# ========================================================= #}
+        {# FORM ĐĂNG KÝ #}
+        {# Gửi dữ liệu bằng phương thức POST đến route 'auth.register'. #}
+        {# Có validation phía client bằng JavaScript. #}
+        {# novalidate: Tắt validation mặc định của trình duyệt để dùng JS. #}
+        {# ========================================================= #}
+        <form method="POST" action="{{ url_for('auth.register') }}" id="registerForm" novalidate>
+            {# CSRF token ẩn để bảo vệ form #}
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+            {# --- Input Họ và Tên --- #}
+            <div class="mb-3">
+                <label for="ho_ten" class="form-label">Họ và Tên</label>
+                <input type="text" class="form-control" id="ho_ten" name="ho_ten" required autocomplete="off" />
+                <div class="invalid-feedback" id="hoTenError">Vui lòng nhập họ tên.</div> {# Vùng báo lỗi validation #}
+            </div>
+
+            {# --- Input Email --- #}
+            <div class="mb-3">
+                <label for="email" class="form-label">Email</label>
+                <input type="email" class="form-control" id="email" name="email" required autocomplete="off" />
+                <div class="invalid-feedback" id="emailError">Vui lòng nhập địa chỉ email hợp lệ.</div>
+            </div>
+
+            {# --- Input Mật khẩu --- #}
+            <div class="mb-3">
+                <label for="password" class="form-label">Mật khẩu</label>
+                <input type="password" class="form-control" id="password" name="password" required minlength="6" />
+                <div class="invalid-feedback" id="passwordError">Mật khẩu phải có ít nhất 6 ký tự.</div>
+            </div>
+
+            {# --- Input Xác nhận Mật khẩu --- #}
+            <div class="mb-3">
+                <label for="confirm_password" class="form-label">Xác nhận Mật khẩu</label>
+                <input type="password" class="form-control" id="confirm_password" name="confirm_password" required
+                    minlength="6" />
+                <div class="invalid-feedback" id="confirmPasswordError">Mật khẩu xác nhận không khớp.</div>
+            </div>
+
+            {# --- Nút Submit --- #}
+            <button type="submit" class="btn btn-primary">Đăng Ký</button>
+        </form> {# Kết thúc form #}
+
+        {# --- Link đến trang Đăng nhập (nếu đã có tài khoản) --- #}
+        <p class="mt-3">
+            Đã có tài khoản?
+            <a href="{{ url_for('auth.login') }}">Đăng nhập tại đây</a>.
+        </p>
+
+    </div> {# Kết thúc col-md-6 #}
+</div> {# Kết thúc row #}
+{% endblock %} {# Kết thúc block content #}
+
+{# ========================================================= #}
+{# BLOCK SCRIPTS: Chứa mã JavaScript cho trang #}
+{# Thực hiện validation phía client cho form đăng ký. #}
+{# ========================================================= #}
+{% block scripts %}
+{{ super() }} {# Nhúng các script chung từ base.html (nếu có) #}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // =========================================================
+        // KHỐI 1: LẤY THAM CHIẾU ĐẾN CÁC ELEMENT
+        // =========================================================
+        const registerForm = document.getElementById("registerForm");
+        const hoTenInput = document.getElementById("ho_ten");
+        const emailInput = document.getElementById("email");
+        const passwordInput = document.getElementById("password");
+        const confirmPasswordInput = document.getElementById("confirm_password");
+        const hoTenError = document.getElementById("hoTenError");
+        const emailError = document.getElementById("emailError");
+        const passwordError = document.getElementById("passwordError");
+        const confirmPasswordError = document.getElementById("confirmPasswordError");
+
+        // =========================================================
+        // KHỐI 2: HÀM TIỆN ÍCH (HELPER FUNCTIONS) CHO VALIDATION
+        // =========================================================
+
+        /** Hiển thị lỗi validation cho input */
+        function showError(inputElement, errorElement, message) {
+            inputElement.classList.add("is-invalid"); // Thêm class Bootstrap
+            if (errorElement) errorElement.textContent = message; // Cập nhật text lỗi
+        }
+        /** Xóa trạng thái lỗi validation khỏi input */
+        function clearError(inputElement, errorElement) {
+            inputElement.classList.remove("is-invalid"); // Xóa class Bootstrap
+        }
+
+        // =========================================================
+        // KHỐI 3: CÁC HÀM VALIDATION CHO TỪNG TRƯỜNG
+        // =========================================================
+
+        /** Kiểm tra Họ Tên không rỗng */
+        function validateHoTen() {
+            if (hoTenInput.value.trim() === "") { // Kiểm tra rỗng (sau khi xóa khoảng trắng thừa)
+                showError(hoTenInput, hoTenError, "Vui lòng nhập họ tên.");
+                return false;
+            }
+            clearError(hoTenInput, hoTenError); // Hợp lệ
+            return true;
+        }
+
+        /** Kiểm tra Email không rỗng và đúng định dạng */
+        function validateEmail() {
+            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // Regex đơn giản
+            const emailValue = emailInput.value.trim();
+            if (emailValue === "") { // Kiểm tra rỗng
+                showError(emailInput, emailError, "Vui lòng nhập địa chỉ email.");
+                return false;
+            } else if (!emailPattern.test(emailValue)) { // Kiểm tra định dạng
+                showError(emailInput, emailError, "Địa chỉ email không đúng định dạng (ví dụ: name@example.com).");
+                return false;
+            }
+            clearError(emailInput, emailError); // Hợp lệ
+            return true;
+        }
+
+        /** Kiểm tra Mật khẩu đủ độ dài (>= 6) */
+        function validatePassword() {
+            if (passwordInput.value.length < 6) { // Kiểm tra độ dài
+                showError(passwordInput, passwordError, "Mật khẩu phải có ít nhất 6 ký tự.");
+                return false;
+            }
+            clearError(passwordInput, passwordError); // Hợp lệ
+            validateConfirmPassword(); // Kiểm tra lại confirm password mỗi khi password chính thay đổi
+            return true;
+        }
+
+        /** Kiểm tra Xác nhận Mật khẩu (khớp với mật khẩu chính) */
+        function validateConfirmPassword() {
+            // Chỉ kiểm tra khớp nếu mật khẩu chính đã hợp lệ (đủ 6+ ký tự)
+            if (passwordInput.value.length >= 6) {
+                if (passwordInput.value !== confirmPasswordInput.value) { // Kiểm tra không khớp
+                    showError(confirmPasswordInput, confirmPasswordError, "Mật khẩu xác nhận không khớp.");
+                    return false;
+                }
+            } else {
+                // Nếu mật khẩu chính chưa hợp lệ (ngắn hơn 6), thì không báo lỗi "không khớp"
+                // mà chỉ xóa lỗi (nếu có)
+                clearError(confirmPasswordInput, confirmPasswordError);
+                return false; // Confirm password cũng không thể hợp lệ nếu password chính chưa hợp lệ
+            }
+            // Nếu mật khẩu chính hợp lệ VÀ khớp
+            clearError(confirmPasswordInput, confirmPasswordError);
+            return true;
+        }
+
+        // =========================================================
+        // KHỐI 4: GẮN SỰ KIỆN VALIDATION VÀO FORM VÀ INPUTS
+        // =========================================================
+        if (registerForm) { // Chỉ chạy nếu form tồn tại
+            // --- Gắn sự kiện kiểm tra khi người dùng rời khỏi ô input (blur) ---
+            hoTenInput.addEventListener("blur", validateHoTen);
+            emailInput.addEventListener("blur", validateEmail);
+
+            // --- Gắn sự kiện kiểm tra mật khẩu khi đang gõ (input) và khi rời khỏi (blur) ---
+            passwordInput.addEventListener("input", validatePassword); // Kiểm tra độ dài khi gõ
+            confirmPasswordInput.addEventListener("input", validateConfirmPassword); // Kiểm tra khớp khi gõ
+            // Kiểm tra lại confirm password khi rời khỏi các ô password
+            passwordInput.addEventListener("blur", validateConfirmPassword);
+            confirmPasswordInput.addEventListener("blur", validateConfirmPassword);
+
+            // --- Gắn sự kiện kiểm tra tổng thể trước khi submit form ---
+            registerForm.addEventListener("submit", function (event) {
+                // Chạy lại tất cả các hàm validation
+                const isHoTenValid = validateHoTen();
+                const isEmailValid = validateEmail();
+                const isPasswordValid = validatePassword();
+                const isConfirmPasswordValid = validateConfirmPassword();
+
+                // Nếu có bất kỳ lỗi nào -> ngăn submit và focus vào lỗi đầu tiên
+                if (!isHoTenValid || !isEmailValid || !isPasswordValid || !isConfirmPasswordValid) {
+                    event.preventDefault(); // Ngăn form gửi đi
+                    event.stopPropagation();
+                    // Tìm input đầu tiên có lỗi và focus vào nó
+                    const firstInvalidInput = registerForm.querySelector(".is-invalid");
+                    if (firstInvalidInput) {
+                        firstInvalidInput.focus();
+                    }
+                }
+                // Nếu tất cả hợp lệ, form sẽ được submit bình thường.
+            }); // Kết thúc event listener submit
+        } // Kết thúc if (registerForm)
+    }); // Kết thúc DOMContentLoaded
+</script>
+{% endblock %} {# Kết thúc block scripts #}

@@ -1,0 +1,297 @@
+{% extends "base.html" %} {# Kế thừa layout từ base.html #}
+{% block title %}Thêm Sách Mới{% endblock %} {# Đặt tiêu đề trang #}
+
+{# ========================================================= #}
+{# BLOCK CONTENT: Nội dung chính của trang Thêm Sách Mới (Admin) #}
+{# Hiển thị form cho phép admin nhập thông tin sách mới. #}
+{# Hỗ trợ upload ảnh bìa, tạo mới tác giả/thể loại nếu chưa có. #}
+{# Có chức năng kiểm tra trùng lặp tự động và chuyển sang chế độ cộng dồn/cập nhật. #}
+{# Sử dụng AJAX để submit form. #}
+{# ========================================================= #}
+{% block content %}
+<h1>Thêm Sách Mới</h1>
+
+{# Vùng hiển thị thông báo lỗi/thành công chung (thường được điều khiển bởi JS) #}
+<div id="jsAlertPlaceholder"></div>
+
+{# Vùng hiển thị cảnh báo khi sách được phát hiện đã tồn tại (JS điều khiển) #}
+<div id="alertExists" class="alert alert-info mt-3" style="display: none;">
+    <strong>Sách đã tồn tại!</strong> Hệ thống sẽ cộng dồn số lượng và cập nhật thông tin (nếu có). Nhấn "Thêm sách mới
+    hoàn toàn" nếu đây là sách khác.
+</div>
+
+{# ========================================================= #}
+{# FORM THÊM SÁCH #}
+{# Gửi dữ liệu bằng AJAX (POST) đến route 'admin.them_sach'. #}
+{# enctype="multipart/form-data" cho phép upload file ảnh bìa. #}
+{# ========================================================= #}
+<form method="POST" action="{{ url_for('admin.them_sach') }}" enctype="multipart/form-data" id="formThemSach">
+    {# CSRF token ẩn để bảo vệ form #}
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" /> {# THÊM DÒNG NÀY #}
+
+    {# --- Input Tiêu đề --- #}
+    <div class="mb-3">
+        <label for="tieu_de" class="form-label">Tiêu đề sách</label>
+        <input type="text" class="form-control" id="tieu_de" name="tieu_de" required>
+    </div>
+
+    {# --- Dropdown Tác giả (TomSelect) --- #}
+    <div class="mb-3">
+        <label for="ten_tac_gia" class="form-label">Tác giả</label>
+        {# Sử dụng TomSelect, cho phép chọn hoặc tạo mới (do JS cấu hình) #}
+        <select id="ten_tac_gia" name="ten_tac_gia" placeholder="Chọn hoặc nhập tên tác giả..." required>
+            <option value="">Chọn hoặc nhập tên tác giả...</option>
+            {% for tac_gia in danh_sach_tac_gia %} {# Lặp qua danh sách tác giả từ context #}
+            <option value="{{ tac_gia.ten_tac_gia }}">{{ tac_gia.ten_tac_gia }}</option>
+            {% endfor %}
+        </select>
+        <div class="form-text">Chọn từ danh sách hoặc gõ tên mới để thêm.</div>
+    </div>
+
+    {# --- Dropdown Thể loại (TomSelect) --- #}
+    <div class="mb-3">
+        <label for="ten_the_loai" class="form-label">Thể loại</label>
+        {# Sử dụng TomSelect, cho phép chọn hoặc tạo mới #}
+        <select id="ten_the_loai" name="ten_the_loai" placeholder="Chọn hoặc nhập tên thể loại..." required>
+            <option value="">Chọn hoặc nhập tên thể loại...</option>
+            {% for the_loai in danh_sach_the_loai %} {# Lặp qua danh sách thể loại từ context #}
+            <option value="{{ the_loai.ten_the_loai }}">{{ the_loai.ten_the_loai }}</option>
+            {% endfor %}
+        </select>
+        <div class="form-text">Chọn từ danh sách hoặc gõ tên mới để thêm.</div>
+    </div>
+
+    {# --- Input Số trang, Năm XB, Số lượng --- #}
+    <div class="row">
+        <div class="col-md-4 mb-3">
+            <label for="so_trang" class="form-label">Số trang</label>
+            <input type="number" class="form-control" id="so_trang" name="so_trang" min="0" value="0"> {# Mặc định 0 #}
+        </div>
+        <div class="col-md-4 mb-3">
+            <label for="nam_xuat_ban" class="form-label">Năm xuất bản</label>
+            <input type="number" class="form-control" id="nam_xuat_ban" name="nam_xuat_ban" min="1000" max="2099"
+                step="1" required> {# Giới hạn năm hợp lý #}
+        </div>
+        <div class="col-md-4 mb-3">
+            <label for="so_luong" class="form-label">Số lượng</label>
+            <input type="number" class="form-control" id="so_luong" name="so_luong" min="1" required> {# Số lượng tối
+            thiểu là 1 #}
+        </div>
+    </div>
+    {# Hướng dẫn về kiểm tra trùng lặp #}
+    <div class="form-text mb-3">
+        Vui lòng điền 4 trường: Tiêu đề, Tác giả, Thể loại, Năm XB để hệ thống tự động kiểm tra trùng lặp.
+    </div>
+
+    {# --- Textarea Mô tả --- #}
+    <div class="mb-3">
+        <label for="mo_ta" class="form-label">Mô tả sách (Tùy chọn)</label>
+        <textarea class="form-control" id="mo_ta" name="mo_ta" rows="5"
+            placeholder="Nhập tóm tắt nội dung sách..."></textarea>
+    </div>
+
+    {# --- Input Ảnh bìa --- #}
+    <div class="mb-3">
+        <label for="anh_bia" class="form-label">Ảnh bìa (Tùy chọn)</label>
+        {# Input kiểu file, chấp nhận các định dạng ảnh phổ biến #}
+        <input type="file" class="form-control" id="anh_bia" name="anh_bia"
+            accept="image/png, image/jpeg, image/gif, image/webp">
+        <div class="form-text" id="anh_bia_text">Nếu để trống, sẽ dùng ảnh 'default_cover.jpg'.</div> {# Text hướng dẫn,
+        JS sẽ thay đổi nếu phát hiện trùng lặp #}
+    </div>
+
+    {# --- Các nút hành động --- #}
+    <button type="submit" class="btn btn-primary" id="btnSubmit">Lưu Sách</button> {# Nút submit chính (AJAX) #}
+    {# Nút này chỉ hiển thị khi JS phát hiện sách trùng lặp #}
+    <button type="button" class="btn btn-secondary" id="btnReset" style="display: none;">Thêm sách mới hoàn
+        toàn</button>
+    <a href="{{ url_for('admin.quan_ly_sach') }}" class="btn btn-outline-secondary">Hủy</a> {# Nút quay lại danh sách
+    sách #}
+</form> {# Kết thúc form #}
+
+{% endblock %} {# Kết thúc block content #}
+
+
+{# ========================================================= #}
+{# BLOCK SCRIPTS: Chứa mã JavaScript cho trang #}
+{# ========================================================= #}
+{% block scripts %}
+{{ super() }} {# Nhúng các script chung từ base.html (như getCsrfToken, showNotification, initializeSearchableSelect) #}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Lấy tham chiếu đến các element quan trọng trên form
+        const formThemSach = document.getElementById('formThemSach');
+        const btnSubmit = document.getElementById('btnSubmit');
+        const btnReset = document.getElementById('btnReset'); // Nút "Thêm mới hoàn toàn"
+        const alertExists = document.getElementById('alertExists'); // Vùng cảnh báo trùng lặp
+        const inputTieuDe = document.getElementById('tieu_de');
+        const inputNamXB = document.getElementById('nam_xuat_ban');
+        const inputSoTrang = document.getElementById('so_trang');
+        const textAnhBia = document.getElementById('anh_bia_text'); // Text hướng dẫn ảnh bìa
+
+        // (Giả định các hàm showNotification và getCsrfToken đã có trong base.html)
+
+        // =========================================================
+        // XỬ LÝ SUBMIT FORM BẰNG AJAX (Fetch API)
+        // =========================================================
+        formThemSach.addEventListener('submit', async function (e) {
+            e.preventDefault(); // Ngăn submit form theo cách truyền thống
+
+            // --- Hiển thị loading ---
+            const btnOriginalText = btnSubmit.innerHTML;
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Đang lưu...`;
+
+            // --- Chuẩn bị dữ liệu và header ---
+            const formData = new FormData(formThemSach); // Lấy dữ liệu form (bao gồm cả file)
+            const csrfToken = getCsrfToken();
+            const headers = { 'X-CSRFToken': csrfToken }; // Thêm CSRF token vào header
+
+            try {
+                // --- Gửi request POST ---
+                const response = await fetch("{{ url_for('admin.them_sach') }}", {
+                    method: 'POST',
+                    body: formData,
+                    headers: headers
+                });
+                const data = await response.json(); // Đọc phản hồi JSON
+
+                // --- Xử lý kết quả ---
+                if (response.ok && data.success) { // Nếu server trả về thành công
+                    showNotification(data.message, 'success'); // Hiển thị thông báo
+                    formThemSach.reset(); // Xóa dữ liệu trên form
+
+                    // Xóa lựa chọn hiện tại trong các dropdown TomSelect
+                    if (window.tomSelectTacGiaInstance) window.tomSelectTacGiaInstance.clear();
+                    if (window.tomSelectTheLoaiInstance) window.tomSelectTheLoaiInstance.clear();
+
+                    resetFormUI(); // Đặt lại giao diện form về trạng thái thêm mới
+                    inputTieuDe.focus(); // Focus vào ô tiêu đề để nhập sách tiếp theo
+                } else {
+                    // Nếu server trả về lỗi
+                    throw new Error(data.error || 'Lỗi không xác định từ server.'); // Ném lỗi
+                }
+            } catch (error) {
+                // Xử lý lỗi (mạng hoặc logic)
+                showNotification(`Lỗi: ${error.message}`, 'danger'); // Hiển thị lỗi
+            } finally {
+                // Luôn kích hoạt lại nút submit
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = btnOriginalText;
+            }
+        }); // Kết thúc event listener submit
+
+        // =========================================================
+        // KHỞI TẠO TOMSELECT CHO DROPDOWN
+        // =========================================================
+        // Sử dụng TomSelect cho Tác giả và Thể loại, cho phép tạo mới (create: true)
+        // Lưu instance vào biến global để có thể reset/clear sau này
+        window.tomSelectTacGiaInstance = new TomSelect('#ten_tac_gia', { create: true, sortField: { field: "text", direction: "asc" } });
+        window.tomSelectTheLoaiInstance = new TomSelect('#ten_the_loai', { create: true, sortField: { field: "text", direction: "asc" } });
+
+        // =========================================================
+        // LOGIC KIỂM TRA TRÙNG LẶP SÁCH TỰ ĐỘNG
+        // =========================================================
+
+        // --- Hàm đặt lại giao diện form về trạng thái thêm mới ---
+        function resetFormUI() {
+            alertExists.style.display = 'none'; // Ẩn cảnh báo trùng lặp
+            btnReset.style.display = 'none'; // Ẩn nút "Thêm mới hoàn toàn"
+            btnSubmit.innerHTML = 'Lưu Sách'; // Đặt lại text nút submit
+            textAnhBia.textContent = "Nếu để trống, sẽ dùng ảnh 'default_cover.jpg'."; // Đặt lại text ảnh
+
+            // Mở khóa các trường bị khóa (nếu có)
+            [inputTieuDe, inputNamXB].forEach(el => { // Chỉ mở khóa 2 trường này
+                el.readOnly = false;
+                el.style.backgroundColor = '';
+            });
+            inputSoTrang.readOnly = false; inputSoTrang.style.backgroundColor = ''; // Đảm bảo số trang ko bị khóa
+
+            // Kích hoạt lại TomSelect
+            if (window.tomSelectTacGiaInstance) window.tomSelectTacGiaInstance.enable();
+            if (window.tomSelectTheLoaiInstance) window.tomSelectTheLoaiInstance.enable();
+        }
+
+        // --- Hàm thiết lập giao diện form khi phát hiện trùng lặp (chế độ cộng dồn/cập nhật) ---
+        function setFormToMerge(details) {
+            // Tự động điền thông tin sách đã có (từ API trả về)
+            inputTieuDe.value = details.tieu_de;
+            if (window.tomSelectTacGiaInstance) window.tomSelectTacGiaInstance.setValue(details.ten_tac_gia);
+            if (window.tomSelectTheLoaiInstance) window.tomSelectTheLoaiInstance.setValue(details.ten_the_loai);
+            inputNamXB.value = details.nam_xuat_ban;
+            inputSoTrang.value = details.so_trang || 0;
+
+            // Khóa các trường thông tin chính không cho sửa
+            inputTieuDe.readOnly = true; inputTieuDe.style.backgroundColor = '#e9ecef';
+            inputNamXB.readOnly = true; inputNamXB.style.backgroundColor = '#e9ecef';
+            // Vô hiệu hóa TomSelect
+            if (window.tomSelectTacGiaInstance) window.tomSelectTacGiaInstance.disable();
+            if (window.tomSelectTheLoaiInstance) window.tomSelectTheLoaiInstance.disable();
+
+            inputSoTrang.readOnly = false; inputSoTrang.style.backgroundColor = ''; // Đảm bảo số trang có thể sửa
+
+            // Cập nhật giao diện
+            textAnhBia.textContent = "Bạn có thể upload ảnh mới để cập nhật ảnh bìa hiện tại.";
+            alertExists.style.display = 'block'; // Hiện cảnh báo trùng lặp
+            btnSubmit.innerHTML = 'Cộng dồn & Cập nhật'; // Đổi text nút submit chính
+            btnReset.style.display = 'inline-block'; // Hiện nút "Thêm mới hoàn toàn"
+        }
+
+        // --- Hàm gọi API /api/sach/check để kiểm tra trùng lặp ---
+        async function checkDuplicateBook() {
+            // Không kiểm tra nếu đang ở chế độ cộng dồn (trường tiêu đề bị khóa)
+            if (inputTieuDe.readOnly) return;
+
+            // Lấy giá trị 4 trường chính
+            const tieuDe = inputTieuDe.value.replace(/\s+/g, ' ').trim();
+            const tenTacGia = window.tomSelectTacGiaInstance.getValue(); // Lấy giá trị từ TomSelect
+            const tenTheLoai = window.tomSelectTheLoaiInstance.getValue();
+            const namXB = inputNamXB.value.trim();
+
+            // Nếu thiếu 1 trong 4 trường -> reset UI về trạng thái thêm mới và dừng
+            if (!tieuDe || !tenTacGia || !tenTheLoai || !namXB) {
+                resetFormUI();
+                return;
+            }
+
+            try {
+                // Tạo URL API với các tham số đã mã hóa
+                const url = `/api/sach/check?tieu_de=${encodeURIComponent(tieuDe)}&ten_tac_gia=${encodeURIComponent(tenTacGia)}&ten_the_loai=${encodeURIComponent(tenTheLoai)}&nam_xuat_ban=${encodeURIComponent(namXB)}`;
+                // Gọi API bằng Fetch (GET request)
+                const response = await fetch(url);
+                const data = await response.json(); // Đọc phản hồi JSON
+
+                // Cập nhật UI dựa trên kết quả
+                if (data.found) {
+                    setFormToMerge(data.details); // Chuyển sang chế độ cộng dồn
+                } else {
+                    resetFormUI(); // Giữ nguyên trạng thái thêm mới
+                }
+            } catch (error) {
+                console.error('Lỗi khi kiểm tra sách:', error);
+                resetFormUI(); // Reset UI nếu có lỗi API
+            }
+        }
+
+        // --- Gắn sự kiện để kích hoạt kiểm tra trùng lặp ---
+        // Kiểm tra khi người dùng rời khỏi (blur) các ô input text/number
+        inputTieuDe.addEventListener('blur', checkDuplicateBook);
+        inputNamXB.addEventListener('blur', checkDuplicateBook);
+        // Kiểm tra khi người dùng thay đổi lựa chọn trong TomSelect
+        if (window.tomSelectTacGiaInstance) window.tomSelectTacGiaInstance.on('change', checkDuplicateBook);
+        if (window.tomSelectTheLoaiInstance) window.tomSelectTheLoaiInstance.on('change', checkDuplicateBook);
+
+        // --- Gắn sự kiện cho nút "Thêm sách mới hoàn toàn" ---
+        // Nút này chỉ hiển thị khi phát hiện trùng lặp
+        btnReset.addEventListener('click', function () {
+            formThemSach.reset(); // Xóa dữ liệu form
+            // Xóa lựa chọn TomSelect
+            if (window.tomSelectTacGiaInstance) window.tomSelectTacGiaInstance.clear();
+            if (window.tomSelectTheLoaiInstance) window.tomSelectTheLoaiInstance.clear();
+            resetFormUI(); // Đặt lại giao diện về trạng thái thêm mới
+            inputTieuDe.focus(); // Focus lại vào ô tiêu đề
+        });
+
+    }); // Kết thúc DOMContentLoaded
+</script>
+{% endblock %} {# Kết thúc block scripts #}

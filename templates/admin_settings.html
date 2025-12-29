@@ -1,0 +1,116 @@
+{% extends "base.html" %} {# Kế thừa cấu trúc layout từ base.html #}
+{% block title %}Cài Đặt Hệ Thống{% endblock %} {# Đặt tiêu đề trang #}
+
+{# ========================================================= #}
+{# BLOCK CONTENT: Nội dung chính của trang Cài Đặt Hệ Thống (Admin) #}
+{# Trang này cho phép admin xem và chỉnh sửa các tham số cấu hình chung #}
+{# của hệ thống thư viện, ví dụ: mức phạt, giới hạn mượn sách. #}
+{# ========================================================= #}
+{% block content %}
+<div class="container">
+    <h1 class="mb-4"><i class="fas fa-cogs"></i> Cài Đặt Hệ Thống</h1>
+
+    <div class="row">
+        {# --- Cột chính chứa Form Cài Đặt --- #}
+        <div class="col-lg-8">
+            <div class="card shadow"> {# Sử dụng card của Bootstrap #}
+                <div class="card-header">
+                    <h5 class="m-0 font-weight-bold text-primary">Cài Đặt Chung</h5>
+                </div>
+                <div class="card-body">
+                    {# ========================================================= #}
+                    {# FORM CẬP NHẬT CÀI ĐẶT #}
+                    {# Gửi dữ liệu bằng phương thức POST đến route 'admin.admin_settings'. #}
+                    {# ========================================================= #}
+                    <form action="{{ url_for('admin.admin_settings') }}" method="POST">
+                        {# CSRF token để bảo vệ form #}
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+                        {# ========================================================= #}
+                        {# KHỐI INPUT CHO CÁC CÀI ĐẶT #}
+                        {# Mỗi cài đặt là một hàng (row) trong form. #}
+                        {# Giá trị hiện tại được lấy từ biến `settings` (là một dict) #}
+                        {# truyền từ Flask view, có giá trị mặc định nếu chưa tồn tại. #}
+                        {# ========================================================= #}
+
+                        {# --- Cài đặt: Mức Phạt Trễ Hẹn --- #}
+                        <div class="mb-3 row">
+                            <label for="muc_phat_tre_hen" class="col-sm-4 col-form-label">Mức Phạt Trễ Hẹn
+                                (VND/ngày/cuốn)</label>
+                            <div class="col-sm-8">
+                                {# Input kiểu number, giá trị không âm, bắt buộc nhập #}
+                                <input type="number" class="form-control" id="muc_phat_tre_hen" name="muc_phat_tre_hen"
+                                    value="{{ settings.get('muc_phat_tre_hen', '0') }}" min="0" required>
+                                <div class="form-text"> {# Ghi chú hướng dẫn #}
+                                    Số tiền này sẽ được nhân với số ngày trễ và số lượng sách mượn.
+                                </div>
+                            </div>
+                        </div>
+
+                        {# --- Cài đặt: Giới Hạn Sách Mượn --- #}
+                        <div class="mb-3 row">
+                            <label for="max_sach_muon_moi_user" class="col-sm-4 col-form-label">Giới Hạn Sách Mượn
+                                (cuốn/độc giả)</label>
+                            <div class="col-sm-8">
+                                {# Input kiểu number, giá trị tối thiểu là 1, bắt buộc nhập #}
+                                <input type="number" class="form-control" id="max_sach_muon_moi_user"
+                                    name="max_sach_muon_moi_user"
+                                    value="{{ settings.get('max_sach_muon_moi_user', '5') }}" min="1" required>
+                                <div class="form-text">
+                                    Tổng số sách (bao gồm cả 'Đang mượn' và 'Đang chờ') mà một độc giả được phép giữ.
+                                </div>
+                            </div>
+                        </div>
+
+                        {# --- Cài đặt: Thời Hạn Gia Hạn --- #}
+                        <div class="mb-3 row">
+                            <label for="thoi_han_gia_han" class="col-sm-4 col-form-label">Thời Hạn Gia Hạn
+                                (ngày)</label>
+                            <div class="col-sm-8">
+                                {# Input kiểu number, giá trị tối thiểu là 1, bắt buộc nhập #}
+                                <input type="number" class="form-control" id="thoi_han_gia_han" name="thoi_han_gia_han"
+                                    value="{{ settings.get('thoi_han_gia_han', '7') }}" min="1" required>
+                                <div class="form-text">
+                                    Số ngày được cộng thêm vào ngày hẹn trả khi độc giả gia hạn sách.
+                                </div>
+                            </div>
+                        </div>
+                        <hr> {# Đường kẻ ngang phân cách #}
+
+                        {# --- Nút Lưu Thay Đổi --- #}
+                        <div class="d-flex justify-content-end"> {# Căn nút sang phải #}
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Lưu Thay Đổi
+                            </button>
+                        </div>
+                    </form> {# Kết thúc form #}
+                </div> {# Kết thúc card-body #}
+            </div> {# Kết thúc card #}
+        </div> {# Kết thúc col-lg-8 #}
+
+        {# ========================================================= #}
+        {# KHỐI HƯỚNG DẪN #}
+        {# Cung cấp giải thích về ý nghĩa của các cài đặt. #}
+        {# ========================================================= #}
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-left-info"> {# Card với viền trái màu xanh info #}
+                <div class="card-header">
+                    <h6 class="m-0 text-info">Hướng dẫn</h6>
+                </div>
+                <div class="card-body">
+                    <p>Đây là nơi bạn quản lý các thiết lập chung cho toàn bộ hệ thống thư viện.</p>
+                    <ul>
+                        <li><strong>Mức Phạt Trễ Hẹn:</strong> Giải thích cách tính phạt.</li>
+                        <li><strong>Giới Hạn Sách Mượn:</strong> Giải thích giới hạn bao gồm cả sách đang chờ.</li>
+                        <li><strong>Thời Hạn Gia Hạn:</strong> Giải thích ý nghĩa của số ngày gia hạn.</li>
+                        <li>Chỉ nhập số, không nhập dấu phẩy hay "VND".</li>
+                    </ul>
+                </div>
+            </div>
+        </div> {# Kết thúc col-lg-4 #}
+    </div> {# Kết thúc row #}
+</div> {# Kết thúc container #}
+
+{# Tải Font Awesome JS (nếu cần thiết và chưa có trong base.html) #}
+<script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+{% endblock %} {# Kết thúc block content #}

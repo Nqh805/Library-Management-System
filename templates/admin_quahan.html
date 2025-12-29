@@ -1,0 +1,56 @@
+{% extends "base.html" %} {# Kế thừa cấu trúc layout từ base.html #}
+{% block title %}Sách Mượn Quá Hạn{% endblock %} {# Đặt tiêu đề cho trang #}
+
+{# ========================================================= #}
+{# BLOCK CONTENT: Nội dung chính của trang Danh Sách Sách Quá Hạn #}
+{# Trang này hiển thị một bảng liệt kê các lượt mượn đang ở trạng thái #}
+{# 'Đang mượn' nhưng có ngày hẹn trả đã trôi qua. #}
+{# ========================================================= #}
+{% block content %}
+<div class="container"> {# Container chính của Bootstrap #}
+    {# Tiêu đề trang, sử dụng icon cảnh báo #}
+    <h1 class="mb-3"><i class="fas fa-exclamation-triangle text-danger"></i> Danh Sách Sách Quá Hạn</h1>
+    <p>Đây là danh sách các sách chưa được trả lại dù đã đến hạn.</p>
+    {# Nút quay lại trang Quản lý Mượn/Trả chính #}
+    <a href="{{ url_for('admin.quan_ly_muontra') }}" class="btn btn-secondary mb-3">Quay Lại</a>
+
+    {# --- Bảng Liệt Kê Sách Quá Hạn --- #}
+    <table class="table table-striped table-bordered table-hover mt-3"> {# Sử dụng các class của Bootstrap để tạo bảng đẹp #}
+        <thead class="table-dark"> {# Header của bảng với nền tối #}
+            <tr>
+                <th>Tiêu Đề Sách</th>
+                <th>Người Mượn</th>
+                <th>Email Liên Hệ</th>
+                <th>Ngày Mượn</th>
+                <th>Ngày Hẹn Trả</th>
+                <th class="text-center">Số Ngày Trễ</th> {# Căn giữa cột Số Ngày Trễ #}
+            </tr>
+        </thead>
+        <tbody>
+            {# Lặp qua danh sách `danh_sach_qua_han` được truyền từ Flask view function #}
+            {% for item in danh_sach_qua_han %}
+            <tr>
+                <td>{{ item.tieu_de }}</td> {# Hiển thị tiêu đề sách #}
+                <td>{{ item.ho_ten }}</td> {# Hiển thị tên người mượn #}
+                <td>{{ item.email }}</td> {# Hiển thị email người mượn #}
+                <td>{{ item.ngay_muon.strftime('%d-%m-%Y') }}</td> {# Hiển thị ngày mượn (định dạng dd-mm-yyyy) #}
+                {# Hiển thị ngày hẹn trả với nền màu vàng (table-warning) để nhấn mạnh #}
+                <td class="table-warning">{{ item.ngay_hen_tra.strftime('%d-%m-%Y') }}</td>
+                <td class="text-center">
+                    {# Hiển thị số ngày trễ (đã được tính toán ở Flask view) trong badge màu đỏ #}
+                    <span class="badge bg-danger fs-6">{{ item.so_ngay_tre }} ngày</span>
+                </td>
+            </tr>
+            {% else %} {# Hiển thị dòng này nếu danh_sach_qua_han rỗng #}
+            <tr>
+                <td colspan="6" class="text-center">Tuyệt vời! Không có sách nào bị mượn quá hạn.</td> {# Thông báo không có sách quá hạn #}
+            </tr>
+            {% endfor %} {# Kết thúc vòng lặp #}
+        </tbody>
+    </table>
+</div>
+
+{# Tải Font Awesome JS (nếu cần thiết và chưa có trong base.html) #}
+{# Thông thường chỉ cần CSS là đủ để hiển thị icon #}
+<script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+{% endblock %} {# Kết thúc block content #}

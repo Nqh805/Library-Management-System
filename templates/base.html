@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="vi">
+    <head>
+        {# ========================================================= #}
+        {# HEAD SECTION #}
+        {# Chứa các thông tin meta, tiêu đề trang, link CSS và icon. #}
+        {# ========================================================= #}
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        {# Tiêu đề trang, có thể được ghi đè bởi các template con sử dụng block title #}
+        <title>{% block title %}Hệ Thống Quản Lý Thư Viện{% endblock %}</title>
+        {# Thẻ meta chứa CSRF token, được JavaScript sử dụng để gửi kèm trong các request AJAX POST/PUT/DELETE #}
+        <meta name="csrf-token" content="{{ csrf_token() }}" />
+        {# Link CSS của Bootstrap 5 #}
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+        {# Link CSS của Font Awesome (cho các icon) #}
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+        {# Link CSS của TomSelect (thư viện tạo dropdown nâng cao) - theme Bootstrap 5 #}
+        <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet" />
+        {# Link favicon của trang web #}
+        <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" />
+        {# CSS #}
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    </head>
+
+    <body>
+        {# ========================================================= #}
+        {# THANH ĐIỀU HƯỚNG (Navbar) #}
+        {# Sử dụng Bootstrap Navbar, hiển thị các menu khác nhau tùy theo #}
+        {# trạng thái đăng nhập và vai trò người dùng (Admin/Độc giả). #}
+        {# ========================================================= #}
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+            <div class="container-fluid">
+                {# Logo/Link trang chủ - Trỏ về dashboard nếu là admin, ngược lại về index #}
+                <a class="navbar-brand" href="{{ url_for('admin.admin_dashboard') if current_user.is_authenticated and current_user.vai_tro == 'quan_ly' else url_for('core.index') }}">
+                    Thư Viện
+                </a>
+                {# Nút bấm cho menu trên màn hình nhỏ #}
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                {# Nội dung menu chính #}
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    {# Menu bên trái (chức năng chính) #}
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        {% if current_user.is_authenticated %} {# Chỉ hiển thị nếu đã đăng nhập #}
+                            {% if current_user.vai_tro == 'quan_ly' %} {# Menu cho Admin #}
+                                <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.admin_dashboard') }}">📊 Bảng Điều Khiển</a></li>
+                                <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.quan_ly_sach') }}">📚 Quản Lý Sách</a></li>
+                                <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.quan_ly_thanhvien') }}">👤 Quản Lý Thành Viên</a></li>
+                                <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.quan_ly_muontra') }}">🔄 Quản Lý Mượn/Trả</a></li>
+                                <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.admin_settings') }}">⚙️ Cài Đặt</a></li>
+                            {% else %} {# Menu cho Độc giả #}
+                                <li class="nav-item"><a class="nav-link" href="{{ url_for('core.danh_sach_sach') }}">🔍 Tra Cứu Sách</a></li>
+                            {% endif %}
+                        {% endif %}
+                    </ul>
+                    {# Menu bên phải (thông tin người dùng/đăng nhập) #}
+                    <ul class="navbar-nav">
+                        {% if current_user.is_authenticated %} {# Nếu đã đăng nhập #}
+                            <li class="nav-item dropdown">
+                                {# Dropdown hiển thị avatar, tên và các tùy chọn hồ sơ/đăng xuất #}
+                                <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    {# Hiển thị avatar (lấy từ current_user), dùng ảnh default nếu không có #}
+                                    <img src="{{ url_for('static', filename='uploads/avatars/' ~ (current_user.avatar | default('default_avatar.png'))) }}" alt="Avatar" width="30" height="30" class="rounded-circle me-2" style="object-fit: cover"/>
+                                    <span>Chào, {{ current_user.ho_ten }}</span> {# Hiển thị tên người dùng #}
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownMenuLink">
+                                    <li><a class="dropdown-item" href="{{ url_for('profile.profile') }}"><i class="fas fa-user-edit me-2"></i> Hồ Sơ Của Tôi</a></li>
+                                    <li><hr class="dropdown-divider" /></li>
+                                    <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt me-2"></i> Đăng Xuất</a></li>
+                                </ul>
+                            </li>
+                        {% else %} {# Nếu chưa đăng nhập #}
+                            <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.login') }}">Đăng Nhập</a></li>
+                            <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.register') }}">Đăng Ký</a></li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        {# ========================================================= #}
+        {# VÙNG NỘI DUNG CHÍNH #}
+        {# Chứa nội dung cụ thể của từng trang con, được định nghĩa #}
+        {# trong block 'content' của các template kế thừa. #}
+        {# Cũng chứa logic hiển thị Flash Messages. #}
+        {# ========================================================= #}
+        <div class="container mt-4">
+            {# --- Hiển thị Flash Messages --- #}
+            {# Lấy các flash message từ Flask #}
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %} {# Chỉ chạy script nếu có message #}
+                    <script>
+                        // Chờ DOM tải xong mới thực thi script
+                        document.addEventListener('DOMContentLoaded', function () {
+                            {% for category, message in messages %} {# Lặp qua các message #}
+                                // Gọi hàm showNotification (định nghĩa ở dưới) để hiển thị toast
+                                // Dùng filter | tojson để đảm bảo message được truyền an toàn vào JavaScript
+                                showNotification({{ message | tojson }}, "{{ category }}");
+                            {% endfor %}
+                        });
+                    </script>
+                {% endif %}
+            {% endwith %}
+            {# --- Block Content --- #}
+            {# Nơi nội dung của các trang con sẽ được chèn vào #}
+            {% block content %}{% endblock %}
+        </div> {# Kết thúc container #}
+
+        {# ========================================================= #}
+        {# TOAST CONTAINER #}
+        {# Vùng chứa các thông báo Toast sẽ xuất hiện ở góc dưới bên phải. #}
+        {# Được điều khiển bởi hàm JavaScript showNotification. #}
+        {# ========================================================= #}
+        <div class="toast-container position-fixed bottom-0 end-0 p-3"></div>
+
+        {# ========================================================= #}
+        {# FOOTER #}
+        {# Phần chân trang, được đẩy xuống dưới cùng nhờ Flexbox. #}
+        {# ========================================================= #}
+        <footer class="bg-dark text-white text-center p-3 mt-auto"> {# mt-auto đẩy footer xuống #}
+            <div class="container">
+                <p class="mb-0 small">© 2025 - Hệ Thống Quản Lý Thư Viện</p>
+            </div>
+        </footer>
+
+        {# ========================================================= #}
+        {# LINK JAVASCRIPT #}
+        {# Nhúng các thư viện JS cần thiết (Bootstrap, TomSelect). #}
+        {# ========================================================= #}
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+
+        {# ========================================================= #}
+        {# KHỐI SCRIPT CHUNG #}
+        {# Chứa các hàm JavaScript dùng chung trên nhiều trang. #}
+        {# ========================================================= #}
+        <script>
+            /**
+             * Hiển thị thông báo dạng Toast của Bootstrap.
+             * @param {string} message - Nội dung thông báo.
+             * @param {string} [type="info"] - Loại thông báo ('success', 'danger', 'warning', 'info', etc.).
+             */
+            function showNotification(message, type = "info") {
+                const toastContainer = document.querySelector(".toast-container"); // Tìm vùng chứa toast
+                if (!toastContainer) { // Xử lý nếu không tìm thấy container
+                    console.error("Không tìm thấy .toast-container để hiển thị thông báo.");
+                    alert(`[${type.toUpperCase()}] ${message}`); // Hiển thị alert dự phòng
+                    return;
+                }
+                const toastId = "toast-" + Date.now(); // Tạo ID duy nhất cho mỗi toast
+                // Xác định class màu nền dựa trên loại thông báo
+                let bgClass = "text-bg-secondary"; // Mặc định
+                if (type === "success") bgClass = "text-bg-success";
+                else if (type === "danger" || type === "error") bgClass = "text-bg-danger";
+                else if (type === "warning") bgClass = "text-bg-warning";
+                else if (type === "info") bgClass = "text-bg-info";
+
+                // Tạo chuỗi HTML cho toast
+                const toastHtml = `
+                <div id="${toastId}" class="toast align-items-center ${bgClass} border-0" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="5000"> {# Tự ẩn sau 5 giây #}
+                    <div class="d-flex">
+                        <div class="toast-body">${message}</div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                </div>`;
+                // Thêm toast vào container
+                toastContainer.insertAdjacentHTML("beforeend", toastHtml);
+                // Lấy element toast vừa thêm và hiển thị nó bằng Bootstrap API
+                const toastEl = document.getElementById(toastId);
+                if (toastEl) {
+                    const toast = new bootstrap.Toast(toastEl);
+                    toast.show();
+                    // Lắng nghe sự kiện 'hidden.bs.toast' để xóa element khỏi DOM sau khi toast đã ẩn hoàn toàn
+                    toastEl.addEventListener("hidden.bs.toast", () => toastEl.remove());
+                }
+            } // Kết thúc showNotification
+
+            /**
+             * Lấy giá trị CSRF token từ thẻ meta trong <head>.
+             * @returns {string|null} Giá trị token hoặc null nếu không tìm thấy.
+             */
+            function getCsrfToken() {
+                const meta = document.querySelector('meta[name="csrf-token"]');
+                return meta ? meta.getAttribute("content") : null;
+            } // Kết thúc getCsrfToken
+
+            /**
+             * Khởi tạo chức năng Thêm/Bỏ yêu thích cho các nút có class '.btn-toggle-favorite'.
+             * Gửi request AJAX POST đến API để cập nhật trạng thái.
+             * Cập nhật giao diện nút (thêm/xóa class 'is-favorite' cho icon trái tim).
+             */
+            function initializeFavoriteButtons() {
+                const favButtons = document.querySelectorAll(".btn-toggle-favorite"); // Tìm tất cả nút yêu thích
+                const csrfToken = getCsrfToken(); // Lấy token một lần
+
+                favButtons.forEach((button) => {
+                    // Bỏ qua các nút trong tab yêu thích của trang profile (#yeu-thich-pane)
+                    // vì trang profile có logic xử lý xóa hàng riêng biệt.
+                    if (button.closest("#yeu-thich-pane")) { return; }
+
+                    // Gắn sự kiện click cho mỗi nút
+                    button.addEventListener("click", async function (e) {
+                        e.preventDefault(); // Ngăn hành vi mặc định (vd: click link thẻ sách)
+                        e.stopPropagation(); // Ngăn sự kiện lan ra thẻ cha
+
+                        const sachId = this.dataset.id; // Lấy ID sách từ data-id
+                        const icon = this.querySelector(".fa-heart"); // Tìm icon trái tim bên trong
+                        if (!sachId || !icon) return; // Thoát nếu thiếu thông tin
+
+                        this.disabled = true; // Vô hiệu hóa nút tạm thời
+
+                        try {
+                            // --- Gọi API bằng Fetch API ---
+                            const response = await fetch(
+                                `/api/sach/toggle-favorite/${sachId}`, // URL API
+                                {
+                                    method: "POST", // Phương thức POST
+                                    headers: { "X-CSRFToken": csrfToken } // Gửi kèm CSRF token
+                                }
+                            );
+                            const data = await response.json(); // Đọc phản hồi JSON
+
+                            if (response.ok && data.success) { // Nếu request thành công
+                                // Cập nhật class 'is-favorite' cho icon dựa trên phản hồi
+                                icon.classList.toggle("is-favorite", data.is_favorite);
+                                // Hiển thị thông báo thành công
+                                showNotification(data.message, data.is_favorite ? "success" : "info");
+                            } else {
+                                // Nếu có lỗi từ server -> ném lỗi
+                                throw new Error(data.error || "Lỗi không xác định từ server.");
+                            }
+                        } catch (error) {
+                            // Xử lý lỗi (mạng hoặc logic)
+                            console.error("Lỗi khi thay đổi yêu thích:", error);
+                            showNotification(`Lỗi: ${error.message}`, "danger"); // Hiển thị lỗi
+                        } finally {
+                            // Luôn kích hoạt lại nút sau khi xử lý xong
+                            this.disabled = false;
+                        }
+                    }); // Kết thúc event listener click
+                }); // Kết thúc forEach button
+            } // Kết thúc initializeFavoriteButtons
+
+            /**
+             * Khởi tạo thư viện TomSelect cho một thẻ <select>.
+             * @param {string} selectId - CSS selector của thẻ select (vd: '#mySelect').
+             * @param {object} [options={}] - Các tùy chọn bổ sung cho TomSelect (vd: { create: true }).
+             */
+            function initializeSearchableSelect(selectId, options = {}) {
+                const el = document.querySelector(selectId); // Tìm element select
+                if (el) {
+                    // Các tùy chọn mặc định cho TomSelect
+                    const defaultOptions = {
+                        create: false, // Mặc định không cho phép tạo option mới
+                        sortField: { field: "text", direction: "asc" } // Sắp xếp option theo text
+                    };
+                    // Khởi tạo TomSelect, kết hợp options mặc định và options truyền vào
+                    new TomSelect(el, { ...defaultOptions, ...options });
+                } else {
+                     console.warn(`TomSelect: Element '${selectId}' not found.`); // Cảnh báo nếu không tìm thấy select
+                }
+            } // Kết thúc initializeSearchableSelect
+
+            /**
+             * Khởi tạo chức năng Live Search (tìm kiếm tức thì khi gõ) cho một ô input.
+             * @param {string} inputId - ID của ô input tìm kiếm.
+             * @param {string} resultsId - ID của div dropdown hiển thị kết quả.
+             */
+            function initializeLiveSearch(inputId, resultsId) {
+                const searchInput = document.getElementById(inputId); // Ô input
+                const resultsDropdown = document.getElementById(resultsId); // Dropdown kết quả
+                if (!searchInput || !resultsDropdown) return; // Dừng nếu thiếu element
+
+                let debounceTimer; // Biến để trì hoãn việc gửi request (debouncing)
+
+                // --- Hàm gọi API tìm kiếm ---
+                async function fetchResults(query) {
+                    if (query.length < 2) { // Chỉ tìm khi có ít nhất 2 ký tự
+                        resultsDropdown.classList.remove("show"); // Ẩn dropdown
+                        return;
+                    }
+                    try {
+                        // Gọi API /api/live-search-sach với tham số q=query
+                        const response = await fetch(`/api/live-search-sach?q=${encodeURIComponent(query)}`);
+                        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                        const data = await response.json(); // Đọc kết quả JSON
+                        renderResults(data); // Hiển thị kết quả
+                    } catch (error) {
+                        console.error("Lỗi live search:", error);
+                        resultsDropdown.classList.remove("show"); // Ẩn dropdown nếu lỗi
+                    }
+                }
+
+                // --- Hàm hiển thị kết quả vào dropdown ---
+                function renderResults(data) {
+                    resultsDropdown.innerHTML = ""; // Xóa kết quả cũ
+                    if (!Array.isArray(data) || data.length === 0) { // Nếu không có kết quả
+                        resultsDropdown.innerHTML = '<span class="dropdown-item text-muted">Không tìm thấy kết quả.</span>';
+                    } else {
+                        // Tạo HTML cho từng mục kết quả
+                        data.forEach((sach) => {
+                            const bookItem = `
+                            <a class="dropdown-item search-result-item" href="/sach/${sach.id_sach}/${sach.slug}"> {# Link đến trang chi tiết sách #}
+                                <img src="/static/uploads/covers/${sach.anh_bia || "default_cover.jpg"}" alt="${sach.tieu_de}" class="search-item-img"> {# Ảnh bìa #}
+                                <div class="search-item-info"> {# Thông tin sách #}
+                                    <div class="search-item-title">${sach.tieu_de}</div>
+                                    <div class="search-item-author">Tác giả: ${sach.ten_tac_gia || "N/A"}</div>
+                                    <div class="search-item-borrows"><i class="fas fa-book-reader fa-xs"></i> ${sach.luot_muon} lượt mượn</div>
+                                </div>
+                            </a>`;
+                            resultsDropdown.insertAdjacentHTML('beforeend', bookItem); // Thêm vào dropdown
+                        });
+                    }
+                    resultsDropdown.classList.add("show"); // Hiển thị dropdown
+                }
+
+                // --- Gắn sự kiện ---
+                // Sự kiện 'keyup': Kích hoạt tìm kiếm sau khi người dùng ngừng gõ 300ms (debouncing)
+                searchInput.addEventListener("keyup", (e) => {
+                    clearTimeout(debounceTimer); // Xóa timer cũ
+                    debounceTimer = setTimeout(() => { // Đặt timer mới
+                        fetchResults(searchInput.value);
+                    }, 300); // Chờ 300ms
+                });
+
+                // Sự kiện 'click' trên document: Ẩn dropdown nếu click ra ngoài ô input và dropdown
+                document.addEventListener("click", (e) => {
+                    if (!searchInput.contains(e.target) && !resultsDropdown.contains(e.target)) {
+                        resultsDropdown.classList.remove("show");
+                    }
+                });
+
+                // Sự kiện 'focus': Hiển thị lại kết quả (nếu có) khi focus vào ô input
+                searchInput.addEventListener("focus", () => {
+                    if (searchInput.value.length >= 2) {
+                        fetchResults(searchInput.value);
+                    }
+                });
+            } // Kết thúc initializeLiveSearch
+        </script>
+
+        {# ========================================================= #}
+        {# BLOCK SCRIPTS (cho các trang con) #}
+        {# Nơi các template con có thể chèn thêm mã JavaScript riêng. #}
+        {# ========================================================= #}
+        {% block scripts %}{% endblock %}
+    </body>
+</html>

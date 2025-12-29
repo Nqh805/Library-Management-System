@@ -1,0 +1,336 @@
+{% extends "base.html" %} {% block title %}Bảng Điều Khiển Admin{% endblock %}
+
+{# ========================================================= #}
+{# BLOCK CONTENT: Nội dung chính của trang Bảng Điều Khiển Admin #}
+{# ========================================================= #}
+{% block content %}
+<h1 class="mb-4">Bảng Điều Khiển</h1>
+
+{# ========================================================= #}
+{# KHỐI THỐNG KÊ TỔNG QUAN (Summary Cards) #}
+{# Hiển thị các số liệu chính của thư viện dưới dạng thẻ card. #}
+{# ========================================================= #}
+<div class="row">
+    {# --- Thẻ Tổng Sách --- #}
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Tổng Sách (Trong Kho) {# Tiêu đề thẻ #}
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ stats.total_sach }} {# Giá trị từ context #}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-book fa-2x text-gray-300"></i> {# Icon #}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# --- Thẻ Tổng Thành Viên --- #}
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Tổng Số Thành Viên
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ stats.total_thanh_vien }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-users fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# --- Thẻ Sách Đang Mượn --- #}
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Sách Đang Mượn
+                        </div>
+                        <div class="h5 mb-0 mr-3 font-weight-bold text-gray-800">
+                            {{ stats.sach_dang_muon }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-clipboard-list fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# --- Thẻ Sách Quá Hạn --- #}
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-danger shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                            Sách Quá Hạn
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ stats.sach_qua_han }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# --- Thẻ Sách Chờ Duyệt --- #}
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Sách Chờ Duyệt (Lấy)
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ stats.sach_cho_duyet }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-hourglass-half fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# --- Thẻ Tổng Tiền Phạt --- #}
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Tổng Tiền Phạt (Đã thu)
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {# Định dạng số tiền phạt có dấu phẩy ngăn cách hàng nghìn #}
+                            {{ "{:,.0f}".format(stats.total_phat) }} VND
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<hr />
+
+{# ========================================================= #}
+{# KHỐI BIỂU ĐỒ VÀ DANH SÁCH CHI TIẾT #}
+{# Bao gồm biểu đồ lượt mượn, danh sách sách sắp hết, top sách/user/thể loại. #}
+{# ========================================================= #}
+<div class="row">
+    {# --- Biểu đồ Lượt Mượn --- #}
+    <div class="col-lg-8 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    Phân tích Lượt Mượn (6 tháng qua)
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-area">
+                    {# Thẻ canvas nơi Chart.js sẽ vẽ biểu đồ #}
+                    <canvas id="borrowChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# --- Danh sách Sách Sắp Hết Hàng --- #}
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-warning">
+                    Sách Sắp Hết Hàng (còn 1-4 cuốn)
+                </h6>
+            </div>
+            {# Giới hạn chiều cao và cho phép cuộn nếu danh sách dài #}
+            <div class="card-body" style="max-height: 20rem; overflow-y: auto">
+                <ul class="list-group list-group-flush">
+                    {# Lặp qua danh sách sách sắp hết từ context #}
+                    {% for sach in low_stock_books %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ sach.tieu_de }} {# Tên sách #}
+                        <span class="badge bg-warning rounded-pill">{{ sach.so_luong_thuc_te }}</span> {# Số lượng còn
+                        lại - SỬA LẠI KEY NẾU CẦN #}
+                    </li>
+                    {% else %} {# Hiển thị nếu danh sách rỗng #}
+                    <li class="list-group-item">Không có sách nào sắp hết hàng.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    {# --- Danh sách Top Sách Mượn Nhiều Nhất --- #}
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-success">Top 5 Sách Mượn Nhiều Nhất</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% for sach in top_books %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ sach.tieu_de }} {# Tên sách #}
+                        <span class="badge bg-success rounded-pill">{{ sach.total_borrows }}</span> {# Tổng lượt mượn #}
+                    </li>
+                    {% else %}
+                    <li class="list-group-item">Chưa có dữ liệu mượn.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    {# --- Danh sách Top Độc Giả Tích Cực --- #}
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-info">Top 5 Độc Giả Tích Cực</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% for user in top_users %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ user.ho_ten }} {# Tên độc giả #}
+                        <span class="badge bg-info rounded-pill">{{ user.total_borrows }}</span> {# Tổng lượt mượn #}
+                    </li>
+                    {% else %}
+                    <li class="list-group-item">Chưa có dữ liệu.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    {# --- Danh sách Top Thể Loại Phổ Biến --- #}
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-secondary">Top 5 Thể Loại Phổ Biến</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% for genre in top_genres %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ genre.ten_the_loai }} {# Tên thể loại #}
+                        <span class="badge bg-secondary rounded-pill">{{ genre.total_borrows }}</span> {# Tổng lượt mượn
+                        #}
+                    </li>
+                    {% else %}
+                    <li class="list-group-item">Chưa có dữ liệu.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{# ========================================================= #}
+{# BLOCK SCRIPTS: Chứa mã JavaScript và link thư viện JS #}
+{# ========================================================= #}
+{% block scripts %}
+{{ super() }} {# Nhúng các script chung từ base.html #}
+{# Link tới thư viện Chart.js (để vẽ biểu đồ) #}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{# Link tới thư viện Font Awesome JS (nếu cần cho các icon động - có thể đã đủ với CSS) #}
+<script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+
+{# --- JavaScript để khởi tạo và vẽ biểu đồ Lượt Mượn --- #}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Lấy context của thẻ canvas
+        var ctx = document.getElementById('borrowChart').getContext('2d');
+
+        // Lấy dữ liệu labels (tháng) và values (số lượt mượn) từ context Python
+        // Sử dụng filter | tojson để chuyển đổi an toàn list Python thành mảng JavaScript
+        var chartLabels = {{ chart_labels | tojson
+    }};
+    var chartData = {{ chart_values | tojson }};
+
+    // Khởi tạo biểu đồ đường (line chart) bằng Chart.js
+    var borrowChart = new Chart(ctx, {
+        type: 'line', // Loại biểu đồ
+        data: {
+            labels: chartLabels, // Dữ liệu trục X (tháng)
+            datasets: [{
+                label: 'Số Lượng Sách Mượn', // Chú thích cho dataset
+                data: chartData, // Dữ liệu trục Y (số lượt mượn)
+                // --- Cấu hình màu sắc và kiểu dáng đường line ---
+                backgroundColor: 'rgba(78, 115, 223, 0.05)', // Màu nền dưới đường line
+                borderColor: 'rgba(78, 115, 223, 1)', // Màu đường line
+                pointRadius: 3, // Bán kính điểm dữ liệu
+                pointBackgroundColor: 'rgba(78, 115, 223, 1)', // Màu nền điểm
+                pointBorderColor: 'rgba(78, 115, 223, 1)', // Màu viền điểm
+                pointHoverRadius: 3, // Bán kính điểm khi hover
+                pointHoverBackgroundColor: 'rgba(78, 115, 223, 1)',
+                pointHoverBorderColor: 'rgba(78, 115, 223, 1)',
+                pointHitRadius: 10, // Vùng nhận diện click/hover quanh điểm
+                pointBorderWidth: 2, // Độ dày viền điểm
+                tension: 0.1 // Độ cong của đường line (0: thẳng, >0: cong)
+            }]
+        },
+        options: {
+            maintainAspectRatio: false, // Cho phép biểu đồ co giãn không theo tỷ lệ gốc
+            scales: {
+                y: { // Cấu hình trục Y
+                    beginAtZero: true, // Bắt đầu từ 0
+                    ticks: {
+                        precision: 0 // Hiển thị số nguyên trên trục Y
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false // Ẩn chú thích mặc định (vì chỉ có 1 dataset)
+                },
+                tooltip: { // Cấu hình tooltip khi hover
+                    callbacks: {
+                        // Tùy chỉnh nội dung tooltip
+                        label: function (context) {
+                            let label = context.dataset.label || '';
+                            if (label) { label += ': '; }
+                            if (context.parsed.y !== null) {
+                                label += context.parsed.y + ' cuốn'; // Thêm đơn vị "cuốn"
+                            }
+                            return label;
+                        }
+                    }
+                }
+            }
+        }
+    }); // Kết thúc new Chart
+    }); // Kết thúc DOMContentLoaded
+</script>
+{% endblock %}

@@ -1,0 +1,230 @@
+{% extends "base.html" %} {# Kế thừa layout từ base.html #}
+{% block title %}Sửa Thông Tin Sách{% endblock %} {# Đặt tiêu đề trang #}
+
+{# ========================================================= #}
+{# BLOCK CONTENT: Nội dung chính của trang Sửa Thông Tin Sách (Admin) #}
+{# Hiển thị form cho phép admin chỉnh sửa thông tin chi tiết của một cuốn sách đã có. #}
+{# Bao gồm tiêu đề, tác giả, thể loại, số trang, năm XB, số lượng, mô tả và ảnh bìa. #}
+{# ========================================================= #}
+{% block content %}
+<h1>Sửa Thông Tin Sách: {{ sach.tieu_de }}</h1> {# Hiển thị tiêu đề sách đang sửa #}
+
+{# ========================================================= #}
+{# FORM SỬA SÁCH #}
+{# Gửi dữ liệu cập nhật bằng phương thức POST đến route 'admin.sua_sach'. #}
+{# enctype="multipart/form-data" cho phép upload file (ảnh bìa). #}
+{# Sử dụng AJAX (Fetch API) để gửi form mà không cần tải lại trang. #}
+{# ========================================================= #}
+<form method="POST" action="{{ url_for('admin.sua_sach', id_sach=sach.id_sach) }}" enctype="multipart/form-data"
+    id="formSuaSach">
+    {# Input ẩn lưu tên file ảnh bìa hiện tại. Dùng để server biết tên file cũ cần xóa (nếu có upload ảnh mới) #}
+    {# và để JavaScript kiểm tra xem có cần redirect sau khi cập nhật không. #}
+    <input type="hidden" name="anh_bia_hien_tai" id="anh_bia_hien_tai"
+        value="{{ sach.anh_bia | default('default_cover.jpg') }}">
+    {# Input ẩn CSRF token để bảo vệ form #}
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" /> {# THÊM DÒNG NÀY #}
+
+    {# --- Input Tiêu đề --- #}
+    <div class="mb-3">
+        <label for="tieu_de" class="form-label">Tiêu đề sách</label>
+        <input type="text" class="form-control" id="tieu_de" name="tieu_de" value="{{ sach.tieu_de }}" required>
+    </div>
+
+    {# --- Dropdown Tác giả (TomSelect) --- #}
+    <div class="mb-3">
+        <label for="ten_tac_gia" class="form-label">Tác giả</label>
+        {# Dropdown sử dụng TomSelect, cho phép chọn tác giả có sẵn hoặc nhập/tạo tên mới (do JS cấu hình create: true).
+        #}
+        <select id="ten_tac_gia" name="ten_tac_gia" placeholder="Chọn hoặc nhập tên tác giả..." required>
+            <option value="">Chọn hoặc nhập tên tác giả...</option>
+            {# Lặp qua danh sách tác giả để tạo các option #}
+            {% for tac_gia in danh_sach_tac_gia %}
+            {# Đánh dấu 'selected' nếu tên tác giả trùng với tác giả hiện tại của sách #}
+            <option value="{{ tac_gia.ten_tac_gia }}" {% if tac_gia.ten_tac_gia==sach.ten_tac_gia %}selected{% endif %}>
+                {{ tac_gia.ten_tac_gia }}
+            </option>
+            {% endfor %}
+            {# Đảm bảo tác giả hiện tại luôn có trong danh sách, phòng trường hợp tên tác giả chưa có trong bảng TacGia
+            #}
+            {% if sach.ten_tac_gia not in danh_sach_tac_gia|map(attribute='ten_tac_gia')|list %}
+            <option value="{{ sach.ten_tac_gia }}" selected>{{ sach.ten_tac_gia }}</option>
+            {% endif %}
+        </select>
+        <div class="form-text">Chọn từ danh sách hoặc gõ tên mới để thêm/thay đổi.</div>
+    </div>
+
+    {# --- Dropdown Thể loại (TomSelect) --- #}
+    <div class="mb-3">
+        <label for="ten_the_loai" class="form-label">Thể loại</label>
+        {# Tương tự dropdown tác giả, cho phép chọn hoặc tạo mới #}
+        <select id="ten_the_loai" name="ten_the_loai" placeholder="Chọn hoặc nhập tên thể loại..." required>
+            <option value="">Chọn hoặc nhập tên thể loại...</option>
+            {% for the_loai in danh_sach_the_loai %}
+            <option value="{{ the_loai.ten_the_loai }}" {% if the_loai.ten_the_loai==sach.ten_the_loai %}selected{%
+                endif %}>
+                {{ the_loai.ten_the_loai }}
+            </option>
+            {% endfor %}
+            {# Đảm bảo thể loại hiện tại luôn có trong danh sách #}
+            {% if sach.ten_the_loai not in danh_sach_the_loai|map(attribute='ten_the_loai')|list %}
+            <option value="{{ sach.ten_the_loai }}" selected>{{ sach.ten_the_loai }}</option>
+            {% endif %}
+        </select>
+        <div class="form-text">Chọn từ danh sách hoặc gõ tên mới để thêm/thay đổi.</div>
+    </div>
+
+    {# --- Input Số trang, Năm XB, Số lượng --- #}
+    <div class="row">
+        <div class="col-md-4 mb-3">
+            <label for="so_trang" class="form-label">Số trang</label>
+            <input type="number" class="form-control" id="so_trang" name="so_trang" min="0"
+                value="{{ sach.so_trang | default(0) }}">
+        </div>
+        <div class="col-md-4 mb-3">
+            <label for="nam_xuat_ban" class="form-label">Năm xuất bản</label>
+            <input type="number" class="form-control" id="nam_xuat_ban" name="nam_xuat_ban" min="1000" max="2099"
+                step="1" value="{{ sach.nam_xuat_ban }}" required>
+        </div>
+        <div class="col-md-4 mb-3">
+            <label for="so_luong" class="form-label">Số lượng</label> {# Tổng số bản sao hiện có #}
+            <input type="number" class="form-control" id="so_luong" name="so_luong" min="0" value="{{ sach.so_luong }}"
+                required>
+        </div>
+    </div>
+
+    {# --- Textarea Mô tả --- #}
+    <div class="mb-3">
+        <label for="mo_ta" class="form-label">Mô tả sách (Tùy chọn)</label>
+        <textarea class="form-control" id="mo_ta" name="mo_ta" rows="5"
+            placeholder="Nhập tóm tắt nội dung sách...">{{ sach.mo_ta or '' }}</textarea>
+    </div>
+
+    {# --- Hiển thị Ảnh bìa hiện tại và Input chọn ảnh mới --- #}
+    <div class="mb-3">
+        <label class="form-label">Ảnh bìa hiện tại</label>
+        <div>
+            {# Hiển thị ảnh bìa hiện tại, dùng ảnh default nếu không có #}
+            <img src="{{ url_for('static', filename='uploads/covers/' ~ (sach.anh_bia | default('default_cover.jpg'))) }}" alt="Ảnh bìa"
+                style="max-height: 100px; border-radius: 4px;" id="imagePreview"> {# ID cho JS cập nhật preview #}
+        </div>
+    </div>
+    <div class="mb-3">
+        <label for="anh_bia" class="form-label">Thay ảnh bìa mới (Tùy chọn)</label>
+        {# Input cho phép chọn file ảnh mới, chỉ chấp nhận các định dạng ảnh phổ biến #}
+        <input type="file" class="form-control" id="anh_bia" name="anh_bia"
+            accept="image/png, image/jpeg, image/gif, image/webp">
+        <div class="form-text">Chỉ upload file mới nếu bạn muốn thay đổi ảnh bìa hiện tại.</div>
+    </div>
+
+    {# --- Nút Submit và Quay lại --- #}
+    <button type="submit" class="btn btn-primary" id="btnSubmit">Cập Nhật</button>
+    <a href="{{ url_for('admin.quan_ly_sach') }}" class="btn btn-secondary">Quay lại danh sách</a>
+</form> {# Kết thúc form #}
+
+{% endblock %} {# Kết thúc block content #}
+
+
+{# ========================================================= #}
+{# BLOCK SCRIPTS: Chứa mã JavaScript cho trang #}
+{# ========================================================= #}
+{% block scripts %}
+{{ super() }} {# Nhúng các script chung từ base.html (như getCsrfToken, showNotification, initializeSearchableSelect) #}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const formSuaSach = document.getElementById('formSuaSach'); // Form sửa sách
+        const btnSubmit = document.getElementById('btnSubmit'); // Nút submit
+
+        // =========================================================
+        // XỬ LÝ SUBMIT FORM BẰNG AJAX (Fetch API)
+        // =========================================================
+        formSuaSach.addEventListener('submit', async function (e) {
+            e.preventDefault(); // Ngăn form submit theo cách truyền thống
+
+            // --- Hiển thị trạng thái loading ---
+            const btnOriginalText = btnSubmit.innerHTML;
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Đang cập nhật...`;
+
+            // --- Chuẩn bị dữ liệu và header ---
+            const formData = new FormData(formSuaSach); // Lấy toàn bộ dữ liệu form (bao gồm file)
+            const csrfToken = getCsrfToken(); // Lấy token (hàm từ base.html)
+            const headers = { 'X-CSRFToken': csrfToken }; // Tạo header với token
+
+            try {
+                // --- Gửi request POST bằng Fetch API ---
+                const response = await fetch(formSuaSach.action, { // URL lấy từ action của form
+                    method: 'POST',
+                    body: formData, // Dữ liệu form
+                    headers: headers // Header chứa CSRF token
+                });
+                const data = await response.json(); // Đọc phản hồi JSON từ server
+
+                // --- Xử lý kết quả ---
+                if (response.ok && data.success) { // Nếu server trả về thành công
+                    showNotification(data.message, 'success'); // Hiển thị thông báo thành công
+
+                    // --- Xử lý redirect nếu có ảnh mới ---
+                    const currentImageValue = document.getElementById('anh_bia_hien_tai').value; // Lấy tên ảnh cũ từ input ẩn
+                    // Kiểm tra xem server có trả về tên ảnh mới và nó khác tên ảnh cũ không
+                    if (data.newImage && data.newImage !== currentImageValue) {
+                        // Cập nhật lại giá trị input ẩn để lần submit sau không bị redirect nữa
+                        document.getElementById('anh_bia_hien_tai').value = data.newImage;
+                        // Đợi 1 giây rồi chuyển hướng đến trang chi tiết sách để thấy ảnh mới
+                        // (Cần reload trang chi tiết vì ảnh được cache bởi trình duyệt)
+                        showNotification("Đang tải lại trang để hiển thị ảnh mới...", 'info'); // Thông báo thêm
+                        setTimeout(() => {
+                            window.location.href = "{{ url_for('admin.admin_chi_tiet_sach', id_sach=sach.id_sach) }}";
+                        }, 1500); // Tăng thời gian chờ lên 1.5 giây
+                    } else {
+                        // Nếu không có ảnh mới hoặc không đổi -> kích hoạt lại nút submit ngay
+                        btnSubmit.disabled = false;
+                        btnSubmit.innerHTML = btnOriginalText;
+                    }
+                } else {
+                    // Nếu server trả về lỗi
+                    throw new Error(data.error || 'Lỗi không xác định từ server.'); // Ném lỗi
+                }
+            } catch (error) {
+                // Xử lý lỗi (lỗi mạng hoặc lỗi logic từ server)
+                showNotification(`Lỗi: ${error.message}`, 'danger'); // Hiển thị thông báo lỗi
+                // Kích hoạt lại nút submit khi có lỗi
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = btnOriginalText;
+            }
+            // Không cần khối 'finally' vì việc kích hoạt lại nút đã được xử lý
+        }); // Kết thúc event listener submit
+
+        // =========================================================
+        // KHỞI TẠO TOMSELECT CHO DROPDOWN
+        // =========================================================
+        // Sử dụng hàm initializeSearchableSelect từ base.html
+        // Cho phép tạo mới (create: true) nếu gõ tên không có trong danh sách
+        initializeSearchableSelect('#ten_tac_gia', { create: true });
+        initializeSearchableSelect('#ten_the_loai', { create: true });
+
+        // =========================================================
+        // XỬ LÝ XEM TRƯỚC ẢNH KHI CHỌN FILE
+        // =========================================================
+        const fileInput = document.getElementById('anh_bia'); // Input chọn file ảnh
+        const imagePreview = document.getElementById('imagePreview'); // Thẻ img hiển thị ảnh
+        let currentBlobUrl = null; // Biến lưu URL blob hiện tại để giải phóng
+
+        if (fileInput && imagePreview) {
+            fileInput.addEventListener('change', function (event) {
+                const file = event.target.files[0]; // Lấy file người dùng đã chọn
+                if (file) {
+                    // Giải phóng URL blob cũ nếu có (tránh rò rỉ bộ nhớ)
+                    if (currentBlobUrl) {
+                        URL.revokeObjectURL(currentBlobUrl);
+                    }
+                    // Tạo URL tạm thời (blob URL) cho file mới
+                    currentBlobUrl = URL.createObjectURL(file);
+                    // Hiển thị ảnh mới trong thẻ img xem trước
+                    imagePreview.src = currentBlobUrl;
+                }
+            });
+        }
+
+    }); // Kết thúc sự kiện DOMContentLoaded
+</script>
+{% endblock %} {# Kết thúc block scripts #}

@@ -1,0 +1,265 @@
+{% extends "base.html" %} {# Kế thừa layout từ base.html #}
+{% block title %}Sửa Thông Tin Thành Viên{% endblock %} {# Đặt tiêu đề trang #}
+
+{# ========================================================= #}
+{# BLOCK CONTENT: Nội dung chính của trang Sửa Thông Tin Thành Viên (Admin) #}
+{# Hiển thị form cho phép admin chỉnh sửa thông tin của một thành viên #}
+{# (bao gồm thông tin cá nhân và chức năng đặt lại mật khẩu). #}
+{# ========================================================= #}
+{% block content %}
+<h1>Sửa Thông Tin: {{ thanh_vien.ho_ten }}</h1> {# Hiển thị tên thành viên đang sửa #}
+
+{# ========================================================= #}
+{# FORM 1: CẬP NHẬT THÔNG TIN CƠ BẢN #}
+{# Gửi dữ liệu bằng phương thức POST truyền thống đến route 'admin.sua_thanhvien'. #}
+{# ========================================================= #}
+<form method="POST" action="{{ url_for('admin.sua_thanhvien', id_thanh_vien=thanh_vien.id_thanh_vien) }}">
+    {# CSRF token để bảo vệ form #}
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+    {# --- Hàng chứa Họ Tên và Email --- #}
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label for="ho_ten" class="form-label">Họ và Tên</label>
+            <input type="text" class="form-control" id="ho_ten" name="ho_ten" value="{{ thanh_vien.ho_ten }}" required>
+        </div>
+        <div class="col-md-6 mb-3">
+            <label for="email" class="form-label">Email</label>
+            <input type="email" class="form-control" id="email" name="email" value="{{ thanh_vien.email }}" required>
+        </div>
+    </div>
+    {# --- Hàng chứa Ngày Sinh, SĐT, Vai Trò --- #}
+    <div class="row">
+        <div class="col-md-4 mb-3">
+            <label for="ngay_sinh" class="form-label">Ngày Sinh</label>
+            {# Hiển thị ngày sinh theo định dạng YYYY-MM-DD nếu có #}
+            <input type="date" class="form-control" id="ngay_sinh" name="ngay_sinh"
+                value="{{ thanh_vien.ngay_sinh.strftime('%Y-%m-%d') if thanh_vien.ngay_sinh }}">
+        </div>
+        <div class="col-md-4 mb-3">
+            <label for="so_dien_thoai" class="form-label">Số Điện Thoại</label>
+            <input type="tel" class="form-control" id="so_dien_thoai" name="so_dien_thoai"
+                value="{{ thanh_vien.so_dien_thoai if thanh_vien.so_dien_thoai }}"> {# Hiển thị SĐT nếu có #}
+        </div>
+        <div class="col-md-4 mb-3">
+            <label for="vai_tro" class="form-label">Vai Trò</label>
+            {# Dropdown chọn Vai trò (Độc Giả/Quản Lý) #}
+            <select class="form-select" id="vai_tro" name="vai_tro">
+                <option value="doc_gia" {% if thanh_vien.vai_tro=='doc_gia' %}selected{% endif %}>Độc Giả</option>
+                <option value="quan_ly" {% if thanh_vien.vai_tro=='quan_ly' %}selected{% endif %}>Quản Lý</option>
+            </select>
+        </div>
+    </div>
+    {# --- Textarea Địa Chỉ --- #}
+    <div class="mb-3">
+        <label for="dia_chi" class="form-label">Địa Chỉ</label>
+        <textarea class="form-control" id="dia_chi" name="dia_chi"
+            rows="2">{{ thanh_vien.dia_chi if thanh_vien.dia_chi }}</textarea> {# Hiển thị địa chỉ nếu có #}
+    </div>
+    {# --- Nút Submit và Hủy --- #}
+    <button type="submit" class="btn btn-primary">Cập Nhật Thông Tin</button>
+    <a href="{{ url_for('admin.quan_ly_thanhvien') }}" class="btn btn-secondary">Hủy</a> {# Nút quay lại danh sách thành
+    viên #}
+</form> {# Kết thúc Form 1 #}
+<hr class="my-4"> {# Đường kẻ ngang phân cách #}
+
+{# ========================================================= #}
+{# KHỐI 2: ĐẶT LẠI MẬT KHẨU #}
+{# Chứa form (không submit trực tiếp) để nhập mật khẩu mới và nút mở modal xác nhận. #}
+{# Việc đặt lại mật khẩu sẽ được xử lý bằng AJAX. #}
+{# ========================================================= #}
+<h4>Đặt Lại Mật Khẩu</h4>
+{# Vùng hiển thị thông báo thành công/lỗi khi đặt lại mật khẩu bằng AJAX #}
+{# Ban đầu ẩn đi, JS sẽ hiển thị khi cần #}
+<div id="jsResetPasswordAlertPlaceholder"></div>
+
+{# Form này chỉ dùng để gom input mật khẩu và nút mở modal, không submit trực tiếp #}
+<form class="row g-3" id="resetPasswordFields">
+    {# CSRF token ẩn, cần thiết cho request AJAX POST #}
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+    <div class="col-md-6">
+        <label for="password_reset" class="form-label">Mật khẩu mới</label>
+        <div class="input-group has-validation"> {# input-group để gộp input và nút con mắt #}
+            <input type="password" class="form-control" id="password_reset" name="password" required minlength="6"> {#
+            Input mật khẩu mới #}
+            {# Nút hiển thị/ẩn mật khẩu (con mắt) #}
+            <button class="btn btn-outline-secondary" type="button" id="togglePasswordReset"> <i class="fas fa-eye"></i>
+            </button>
+            {# Vùng hiển thị lỗi validation cho mật khẩu #}
+            <div class="invalid-feedback" id="passwordResetError"> Mật khẩu phải có ít nhất 6 ký tự. </div>
+        </div>
+        <div class="form-text">Mật khẩu cũ của người dùng sẽ bị ghi đè ngay lập tức.</div>
+    </div>
+    <div class="col-md-6 d-flex align-items-end"> {# Căn nút xuống dưới #}
+        {# Nút này chỉ có chức năng mở Modal xác nhận, không submit form #}
+        <button type="button" class="btn btn-warning" data-bs-toggle="modal"
+            data-bs-target="#confirmResetPasswordModal">
+            Xác Nhận Đặt Lại Mật Khẩu
+        </button>
+    </div>
+</form> {# Kết thúc Form chứa input mật khẩu #}
+
+{# ========================================================= #}
+{# MODAL XÁC NHẬN ĐẶT LẠI MẬT KHẨU #}
+{# Hiển thị hộp thoại yêu cầu admin xác nhận trước khi thực hiện reset mật khẩu. #}
+{# ========================================================= #}
+<div class="modal fade" id="confirmResetPasswordModal" tabindex="-1" aria-labelledby="confirmResetPasswordModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmResetPasswordModalLabel">Xác Nhận Đặt Lại Mật Khẩu</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Bạn có chắc chắn muốn đặt lại mật khẩu cho người dùng <strong>{{ thanh_vien.ho_ten }}</strong>? {# Hiển
+                thị tên người dùng #}
+                <br>Hành động này không thể hoàn tác.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                {# Nút này sẽ được JavaScript gắn sự kiện click để gửi request AJAX #}
+                <button type="button" class="btn btn-warning" id="confirmResetBtn">Xác Nhận Đặt Lại</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %} {# Kết thúc block content #}
+
+{# ========================================================= #}
+{# BLOCK SCRIPTS: Chứa mã JavaScript cho trang #}
+{# ========================================================= #}
+{% block scripts %}
+{{ super() }} {# Kế thừa các script từ base.html (như getCsrfToken, showNotification) #}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+
+        // =========================================================
+        // KHỐI 1: HÀM TIỆN ÍCH (HELPER FUNCTIONS)
+        // =========================================================
+
+        // --- Hàm hiển thị lỗi validation cho input ---
+        function showError(inputElement, errorElement, message) {
+            inputElement.classList.add("is-invalid"); // Thêm class Bootstrap
+            if (errorElement) errorElement.textContent = message; // Cập nhật text lỗi
+        }
+        // --- Hàm xóa lỗi validation khỏi input ---
+        function clearError(inputElement, errorElement) {
+            inputElement.classList.remove("is-invalid"); // Xóa class Bootstrap
+        }
+
+        // --- Hàm bật/tắt hiển thị mật khẩu (nút con mắt) ---
+        function addTogglePasswordVisibility(buttonElement, inputElement) {
+            if (!buttonElement || !inputElement) return; // Kiểm tra element tồn tại
+            buttonElement.addEventListener("click", function () {
+                const icon = this.querySelector("i");
+                const currentType = inputElement.getAttribute("type");
+                // Chuyển đổi type và icon
+                if (currentType === "password") {
+                    inputElement.setAttribute("type", "text");
+                    icon.classList.replace("fa-eye", "fa-eye-slash"); // Dùng replace gọn hơn
+                } else {
+                    inputElement.setAttribute("type", "password");
+                    icon.classList.replace("fa-eye-slash", "fa-eye");
+                }
+            });
+        }
+
+        // =========================================================
+        // KHỐI 2: XỬ LÝ ĐẶT LẠI MẬT KHẨU BẰNG AJAX
+        // =========================================================
+        const resetPasswordFields = document.getElementById('resetPasswordFields'); // Form chứa input
+        const confirmResetBtn = document.getElementById('confirmResetBtn'); // Nút xác nhận trong Modal
+        const passwordInput = document.getElementById('password_reset'); // Input mật khẩu mới
+        // const alertPlaceholder = document.getElementById('jsResetPasswordAlertPlaceholder'); // Vùng alert cũ (đã thay bằng toast)
+        const resetPasswordModalElement = document.getElementById('confirmResetPasswordModal'); // Modal
+        const passwordResetError = document.getElementById('passwordResetError'); // Div báo lỗi validation
+        const togglePasswordBtn = document.getElementById('togglePasswordReset'); // Nút con mắt
+
+        // Hàm kiểm tra validation riêng cho input mật khẩu mới
+        function validateResetPassword() {
+            if (passwordInput.value.length < 6) { // Kiểm tra độ dài
+                showError(passwordInput, passwordResetError, "Mật khẩu phải có ít nhất 6 ký tự.");
+                return false; // Không hợp lệ
+            }
+            clearError(passwordInput, passwordResetError); // Hợp lệ
+            return true;
+        }
+
+        // Chỉ thực thi nếu các element cần thiết tồn tại
+        if (resetPasswordFields && confirmResetBtn && passwordInput && resetPasswordModalElement && passwordResetError && togglePasswordBtn) {
+
+            // Kích hoạt chức năng hiển thị/ẩn mật khẩu cho nút con mắt
+            addTogglePasswordVisibility(togglePasswordBtn, passwordInput);
+
+            // Gắn sự kiện validation trực tiếp khi người dùng nhập hoặc rời khỏi ô mật khẩu
+            passwordInput.addEventListener('input', validateResetPassword);
+            passwordInput.addEventListener('blur', validateResetPassword);
+
+            // Gắn sự kiện click cho nút "Xác Nhận Đặt Lại" trong Modal
+            confirmResetBtn.addEventListener('click', async function () {
+
+                // 1. Kiểm tra validation lần cuối trước khi gửi
+                if (!validateResetPassword()) {
+                    // Nếu không hợp lệ -> hiển thị thông báo toast (thay vì alert) và đóng modal
+                    showNotification('Mật khẩu mới phải có ít nhất 6 ký tự.', 'danger');
+                    const modalInstance = bootstrap.Modal.getInstance(resetPasswordModalElement);
+                    if (modalInstance) modalInstance.hide();
+                    return; // Dừng thực thi
+                }
+
+                // 2. Hiển thị trạng thái loading
+                const btnOriginalText = confirmResetBtn.innerHTML;
+                confirmResetBtn.disabled = true;
+                confirmResetBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Đang xử lý...`;
+
+                // 3. Chuẩn bị dữ liệu và header cho request AJAX
+                const formData = new FormData(resetPasswordFields); // Lấy dữ liệu từ form (bao gồm cả csrf_token ẩn)
+                const csrfToken = getCsrfToken(); // Lấy token (thực ra đã có trong formData)
+                const headers = { 'X-CSRFToken': csrfToken }; // Tạo header
+                // Lấy URL endpoint từ template Jinja (đã render sẵn ID thành viên)
+                const actionUrl = "{{ url_for('admin.reset_matkhau', id_thanh_vien=thanh_vien.id_thanh_vien) }}";
+
+                try {
+                    // 4. Gửi request POST bằng Fetch API
+                    const response = await fetch(actionUrl, {
+                        method: 'POST',
+                        body: formData,
+                        headers: headers
+                    });
+                    const data = await response.json(); // Đọc phản hồi JSON
+
+                    // 5. Đóng modal sau khi có phản hồi
+                    const modalInstance = bootstrap.Modal.getInstance(resetPasswordModalElement);
+                    if (modalInstance) modalInstance.hide();
+
+                    // 6. Xử lý kết quả trả về từ server
+                    if (response.ok && data.success) {
+                        // Nếu thành công -> hiển thị thông báo toast thành công và xóa nội dung ô mật khẩu
+                        showNotification(data.message, 'success');
+                        passwordInput.value = ''; // Xóa mật khẩu đã nhập
+                        clearError(passwordInput, passwordResetError); // Xóa trạng thái lỗi (nếu có)
+                    } else {
+                        // Nếu thất bại -> ném lỗi để khối catch xử lý
+                        throw new Error(data.error || 'Đặt lại mật khẩu thất bại.');
+                    }
+                } catch (error) {
+                    // 7. Xử lý lỗi (lỗi mạng hoặc lỗi logic từ server)
+                    showNotification(`Lỗi: ${error.message}`, 'danger'); // Hiển thị lỗi bằng toast
+                    console.error('Lỗi fetch khi reset password:', error);
+                    // Không cần đóng modal ở đây vì đã đóng ở bước 5 (trong try) hoặc nếu lỗi mạng thì cũng nên đóng
+                    const modalInstance = bootstrap.Modal.getInstance(resetPasswordModalElement);
+                    if (modalInstance && bootstrap.Modal.getInstance(resetPasswordModalElement)) { // Kiểm tra lại modal còn tồn tại
+                        modalInstance.hide();
+                    }
+                } finally {
+                    // 8. Luôn kích hoạt lại nút và trả lại text gốc sau khi xử lý xong
+                    confirmResetBtn.disabled = false;
+                    confirmResetBtn.innerHTML = btnOriginalText;
+                }
+            }); // Kết thúc event listener click confirmResetBtn
+        } // Kết thúc khối if kiểm tra element tồn tại
+
+    }); // Kết thúc sự kiện DOMContentLoaded
+</script>
+{% endblock %} {# Kết thúc block scripts #}

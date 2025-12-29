@@ -1,0 +1,276 @@
+{% extends "base.html" %} {# Kế thừa layout từ base.html #}
+{% block title %}Trang Chủ{% endblock %} {# Đặt tiêu đề trang #}
+
+{# ========================================================= #}
+{# BLOCK CONTENT: Nội dung chính của Trang Chủ #}
+{# Hiển thị lời chào mừng, form tìm kiếm nhanh/lọc. #}
+{# Tùy thuộc vào việc có đang tìm kiếm hay không, trang sẽ hiển thị: #}
+{# - Kết quả tìm kiếm dạng lưới có phân trang. #}
+{# - Hoặc các danh sách sách cuộn ngang mặc định (Mới nhất, Phổ biến, Gợi ý). #}
+{# ========================================================= #}
+{% block content %}
+
+{# --- Lời chào mừng (nếu người dùng đã đăng nhập) --- #}
+{% if current_user.is_authenticated %}
+<h2 class="mb-4">👋 Chào mừng, {{ current_user.ho_ten }}!</h2>
+{% endif %}
+
+{# ========================================================= #}
+{# KHỐI TÌM KIẾM NHANH VÀ LỌC #}
+{# Chứa form tìm kiếm (với live search), dropdown lọc Thể loại, Tác giả. #}
+{# ========================================================= #}
+<section class="mb-4 p-3 bg-light rounded shadow-sm">
+    <h2 class="h5 mb-3">Tìm Kiếm Sách Nhanh</h2>
+    {# Form gửi request GET đến chính trang chủ để thực hiện tìm kiếm/lọc #}
+    <form method="GET" action="{{ url_for('core.index') }}">
+        <div class="row g-2 align-items-end">
+            {# --- Input tìm kiếm (với Live Search) --- #}
+            <div class="col-lg-4 mb-2 position-relative"> {# position-relative cho dropdown kết quả #}
+                <label for="search-input-home" class="form-label visually-hidden">Tìm kiếm</label>
+                {# autocomplete="off" để không xung đột với live search #}
+                <input type="text" class="form-control form-control-sm" name="search" id="search-input-home"
+                    placeholder="Nhập tiêu đề, tác giả..." autocomplete="off" value="{{ search_query | default('') }}">
+                {# Dropdown hiển thị kết quả live search (JS điều khiển) #}
+                <div class="dropdown-menu w-100 live-search-results" id="search-results-home"
+                    aria-labelledby="search-input-home">
+                    {# Kết quả sẽ được JS chèn vào đây #}
+                </div>
+            </div>
+            {# --- Dropdown lọc Thể loại (TomSelect) --- #}
+            <div class="col-lg-3 mb-2">
+                <label for="select-the-loai-home" class="form-label visually-hidden">Thể loại</label>
+                <select id="select-the-loai-home" name="id_the_loai" class="form-select-sm"
+                    placeholder="Chọn thể loại...">
+                    <option value="">Tất cả Thể Loại</option>
+                    {% for tl in danh_sach_the_loai %} {# Lấy danh sách từ context #}
+                    <option value="{{ tl.id_the_loai }}" {% if tl.id_the_loai|string==selected_the_loai %}selected{%
+                        endif %}> {# Giữ lại lựa chọn cũ #}
+                        {{ tl.ten_the_loai }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {# --- Dropdown lọc Tác giả (TomSelect) --- #}
+            <div class="col-lg-3 mb-2">
+                <label for="select-tac-gia-home" class="form-label visually-hidden">Tác giả</label>
+                <select id="select-tac-gia-home" name="id_tac_gia" class="form-select-sm" placeholder="Chọn tác giả...">
+                    <option value="">Tất cả Tác Giả</option>
+                    {% for tg in danh_sach_tac_gia %} {# Lấy danh sách từ context #}
+                    <option value="{{ tg.id_tac_gia }}" {% if tg.id_tac_gia|string==selected_tac_gia %}selected{% endif
+                        %}> {# Giữ lại lựa chọn cũ #}
+                        {{ tg.ten_tac_gia }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {# --- Nút Submit Form --- #}
+            <div class="col-lg-2 mb-2">
+                <button class="btn btn-primary btn-sm w-100" type="submit">
+                    <i class="fas fa-search"></i> <span class="d-none d-xl-inline">Tìm</span> {# Ẩn chữ "Tìm" trên màn
+                    hình nhỏ #}
+                </button>
+            </div>
+        </div>
+    </form>
+</section>
+
+{# ========================================================= #}
+{# KHỐI HIỂN THỊ NỘI DUNG CHÍNH (Tùy thuộc is_searching) #}
+{# ========================================================= #}
+
+{# --- A. Nếu ĐANG TÌM KIẾM/LỌC --- #}
+{% if is_searching %}
+<section class="mb-5">
+    <h2 class="h4 section-title"><i class="fas fa-search"></i> {{ search_title }}</h2> {# Tiêu đề kết quả tìm kiếm #}
+
+    {# --- Hiển thị kết quả dạng lưới (Grid) --- #}
+    <div class="row g-3 mt-1"> {# g-3 tạo khoảng cách giữa các cột #}
+        {% for sach in search_results_paginated %} {# Lặp qua kết quả đã phân trang #}
+        {# Cấu hình cột cho các kích thước màn hình khác nhau (responsive grid) #}
+        <div class="col-6 col-md-4 col-lg-3 col-xl-2 mb-3">
+            <div class="book-card h-100"> {# h-100 để các thẻ có chiều cao bằng nhau #}
+                {# Link bao phủ thẻ, dẫn đến trang chi tiết #}
+                <a href="{{ url_for('core.chi_tiet_sach', id_sach=sach.id_sach, slug=slugify(sach.tieu_de)) }}"
+                    class="book-link stretched-link">
+                    {# Nút yêu thích nhỏ #}
+                    <button class="btn btn-light btn-sm btn-favorite-card btn-toggle-favorite"
+                        data-id="{{ sach.id_sach }}" onclick="event.preventDefault(); event.stopPropagation();"
+                        title="Thêm vào yêu thích">
+                        <i class="fas fa-heart {% if sach.is_favorite %}is-favorite{% endif %}"></i> {# Thêm class
+                        is-favorite nếu đã thích #}
+                    </button>
+                    {# Ảnh bìa #}
+                    <img src="{{ url_for('static', filename='uploads/covers/' ~ (sach.anh_bia | default('default_cover.jpg'))) }}"
+                        class="card-img-top" alt="{{ sach.tieu_de }}"> {# Dùng ảnh default nếu không có #}
+                    {# Tiêu đề sách #}
+                    <div class="card-body">
+                        <h6 class="card-title">{{ sach.tieu_de }} {% if sach.ten_tac_gia %}({{ sach.ten_tac_gia }}){%
+                            endif %}</h6>
+                    </div>
+                </a>
+            </div>
+        </div>
+        {% else %} {# Hiển thị nếu không có kết quả tìm kiếm #}
+        <div class="col-12">
+            <div class="alert alert-info" role="alert"> Không tìm thấy sách nào phù hợp với lựa chọn của bạn. </div>
+        </div>
+        {% endfor %}
+    </div> {# Kết thúc row chứa kết quả #}
+
+    {# --- Phân trang cho kết quả tìm kiếm --- #}
+    {% if total_search_pages > 1 %} {# Chỉ hiển thị nếu có nhiều hơn 1 trang #}
+    <nav aria-label="Search Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {# Nút Lùi #}
+            <li class="page-item {% if current_search_page == 1 %}disabled{% endif %}">
+                {# URL giữ nguyên các tham số tìm kiếm/lọc, chỉ thay đổi search_page #}
+                <a class="page-link"
+                    href="{{ url_for('core.index', search_page=current_search_page - 1, search=search_query, id_the_loai=selected_the_loai, id_tac_gia=selected_tac_gia) }}">&laquo;</a>
+            </li>
+            {# Logic hiển thị số trang và dấu ... (tương tự macro ở admin_muontra.html) #}
+            {% set start_page = [1, current_search_page - 2] | max %}
+            {% set end_page = [total_search_pages, current_search_page + 2] | min %}
+            {% if start_page > 1 %}
+            <li class="page-item"><a class="page-link"
+                    href="{{ url_for('core.index', search_page=1, search=search_query, id_the_loai=selected_the_loai, id_tac_gia=selected_tac_gia) }}">1</a>
+            </li>
+            {% if start_page > 2 %}<li class="page-item disabled"><span class="page-link">...</span></li>{% endif %}
+            {% endif %}
+            {% for p in range(start_page, end_page + 1) %}
+            <li class="page-item {% if p == current_search_page %}active{% endif %}">
+                <a class="page-link"
+                    href="{{ url_for('core.index', search_page=p, search=search_query, id_the_loai=selected_the_loai, id_tac_gia=selected_tac_gia) }}">{{
+                    p }}</a>
+            </li>
+            {% endfor %}
+            {% if end_page < total_search_pages %} {% if end_page < total_search_pages - 1 %}<li
+                class="page-item disabled"><span class="page-link">...</span></li>{% endif %}
+                <li class="page-item"><a class="page-link"
+                        href="{{ url_for('core.index', search_page=total_search_pages, search=search_query, id_the_loai=selected_the_loai, id_tac_gia=selected_tac_gia) }}">{{
+                        total_search_pages }}</a></li>
+                {% endif %}
+                {# Nút Tiến #}
+                <li class="page-item {% if current_search_page == total_search_pages %}disabled{% endif %}">
+                    <a class="page-link"
+                        href="{{ url_for('core.index', search_page=current_search_page + 1, search=search_query, id_the_loai=selected_the_loai, id_tac_gia=selected_tac_gia) }}">&raquo;</a>
+                </li>
+        </ul>
+    </nav>
+    {% endif %} {# Kết thúc phân trang tìm kiếm #}
+
+</section> {# Kết thúc section kết quả tìm kiếm #}
+
+{# --- B. Nếu KHÔNG TÌM KIẾM/LỌC (Hiển thị mặc định) --- #}
+{% else %}
+{# --- Section: Sách Mới Nhất --- #}
+<section class="mb-5">
+    <h2 class="h4 section-title"><i class="fas fa-book-open"></i> Sách Mới Nhất</h2>
+    <div class="scrolling-wrapper"> {# Khu vực cuộn ngang #}
+        {% for sach in sach_moi_nhat %} {# Lặp qua danh sách sách mới #}
+        <div class="book-card"> {# Thẻ sách #}
+            <a href="{{ url_for('core.chi_tiet_sach', id_sach=sach.id_sach, slug=slugify(sach.tieu_de)) }}"
+                class="book-link stretched-link">
+                <button class="btn btn-light btn-sm btn-favorite-card btn-toggle-favorite" data-id="{{ sach.id_sach }}"
+                    onclick="event.preventDefault(); event.stopPropagation();" title="Thêm vào yêu thích">
+                    <i class="fas fa-heart {% if sach.is_favorite %}is-favorite{% endif %}"></i>
+                </button>
+                <img src="{{ url_for('static', filename='uploads/covers/' ~ (sach.anh_bia | default('default_cover.jpg'))) }}"
+                    class="card-img-top" alt="{{ sach.tieu_de }}">
+                <div class="card-body">
+                    <h6 class="card-title">{{ sach.tieu_de }} {% if sach.ten_tac_gia %}({{ sach.ten_tac_gia }}){% endif
+                        %}</h6>
+                </div>
+            </a>
+        </div>
+        {% else %} {# Hiển thị nếu danh sách rỗng #}
+        <p class="text-muted ms-2">Chưa có sách mới.</p>
+        {% endfor %}
+    </div>
+</section>
+
+{# --- Section: Sách Mượn Nhiều Nhất --- #}
+<section class="mb-5">
+    <h2 class="h4 section-title"><i class="fas fa-star"></i> Sách Mượn Nhiều Nhất</h2>
+    <div class="scrolling-wrapper">
+        {% for sach in sach_pho_bien %} {# Lặp qua danh sách sách phổ biến #}
+        <div class="book-card">
+            <a href="{{ url_for('core.chi_tiet_sach', id_sach=sach.id_sach, slug=slugify(sach.tieu_de)) }}"
+                class="book-link stretched-link">
+                <button class="btn btn-light btn-sm btn-favorite-card btn-toggle-favorite" data-id="{{ sach.id_sach }}"
+                    onclick="event.preventDefault(); event.stopPropagation();" title="Thêm vào yêu thích">
+                    <i class="fas fa-heart {% if sach.is_favorite %}is-favorite{% endif %}"></i>
+                </button>
+                <img src="{{ url_for('static', filename='uploads/covers/' ~ (sach.anh_bia | default('default_cover.jpg'))) }}"
+                    class="card-img-top" alt="{{ sach.tieu_de }}">
+                <div class="card-body">
+                    <h6 class="card-title">{{ sach.tieu_de }} {% if sach.ten_tac_gia %}({{ sach.ten_tac_gia }}){% endif
+                        %}</h6>
+                </div>
+            </a>
+        </div>
+        {% else %} {# Hiển thị nếu danh sách rỗng #}
+        <p class="text-muted ms-2">Chưa có đủ dữ liệu về sách mượn nhiều nhất.</p>
+        {% endfor %}
+    </div>
+</section>
+
+{# --- Section: Sách Gợi Ý (Dành Riêng Cho Bạn) --- #}
+<section class="mb-5">
+    <h2 class="h4 section-title"><i class="fas fa-magic"></i> Dành Riêng Cho Bạn</h2>
+    <p class="text-muted small ms-2 mt-n2">Dựa trên những thể loại bạn thường mượn.</p> {# Chú thích nhỏ #}
+    <div class="scrolling-wrapper">
+        {% for sach in sach_goi_y %} {# Lặp qua danh sách sách gợi ý #}
+        <div class="book-card">
+            <a href="{{ url_for('core.chi_tiet_sach', id_sach=sach.id_sach, slug=slugify(sach.tieu_de)) }}"
+                class="book-link stretched-link">
+                <button class="btn btn-light btn-sm btn-favorite-card btn-toggle-favorite" data-id="{{ sach.id_sach }}"
+                    onclick="event.preventDefault(); event.stopPropagation();" title="Thêm vào yêu thích">
+                    <i class="fas fa-heart {% if sach.is_favorite %}is-favorite{% endif %}"></i>
+                </button>
+                <img src="{{ url_for('static', filename='uploads/covers/' ~ (sach.anh_bia | default('default_cover.jpg'))) }}"
+                    class="card-img-top" alt="{{ sach.tieu_de }}">
+                <div class="card-body">
+                    <h6 class="card-title">{{ sach.tieu_de }} {% if sach.ten_tac_gia %}({{ sach.ten_tac_gia }}){% endif
+                        %}</h6>
+                </div>
+            </a>
+        </div>
+        {% else %} {# Hiển thị nếu danh sách rỗng #}
+        <p class="text-muted ms-2">Chưa có sách gợi ý cho bạn.</p>
+        {% endfor %}
+    </div>
+</section>
+{% endif %} {# Kết thúc khối else (hiển thị mặc định) #}
+
+{% endblock %} {# Kết thúc block content #}
+
+
+{# ========================================================= #}
+{# BLOCK SCRIPTS: Chứa mã JavaScript cho trang #}
+{# Khởi tạo TomSelect, Live Search, và Nút Yêu thích. #}
+{# ========================================================= #}
+{% block scripts %}
+{{ super() }} {# Nhúng script từ base.html (chứa các hàm khởi tạo) #}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // --- Khởi tạo TomSelect cho dropdown lọc Thể loại và Tác giả ---
+        // Gọi hàm initializeSearchableSelect từ base.html
+        if (typeof initializeSearchableSelect === 'function') {
+            initializeSearchableSelect('#select-the-loai-home');
+            initializeSearchableSelect('#select-tac-gia-home');
+        } else { console.error("Hàm initializeSearchableSelect không tồn tại."); }
+
+        // --- Khởi tạo chức năng Live Search ---
+        // Gọi hàm initializeLiveSearch từ base.html
+        if (typeof initializeLiveSearch === 'function') {
+            initializeLiveSearch('search-input-home', 'search-results-home'); // ID ô input và ID dropdown kết quả
+        } else { console.error("Hàm initializeLiveSearch không tồn tại."); }
+
+        // --- Khởi tạo chức năng cho các Nút Yêu thích ---
+        // Gọi hàm initializeFavoriteButtons từ base.html
+        if (typeof initializeFavoriteButtons === 'function') {
+            initializeFavoriteButtons();
+        } else { console.error("Hàm initializeFavoriteButtons không tồn tại."); }
+    });
+</script>
+{% endblock %} {# Kết thúc block scripts #}

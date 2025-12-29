@@ -1,0 +1,762 @@
+{% extends "base.html" %}
+{% block title %}Quản Lý Mượn/Trả Sách{% endblock %}
+
+{# ========================================================= #}
+{# BLOCK CONTENT: Nội dung chính của trang Quản Lý Mượn/Trả (Admin) #}
+{# Hiển thị danh sách các lượt mượn sách theo trạng thái (Đang chờ, Đang mượn, Lịch sử) #}
+{# Cho phép admin tìm kiếm, xác nhận lấy sách, hủy đơn đặt, đánh dấu đã trả. #}
+{# ========================================================= #}
+{% block content %}
+
+{# ========================================================= #}
+{# MACRO: render_pagination #}
+{# Tái sử dụng code HTML và logic để hiển thị thanh phân trang cho các tab. #}
+{# Nhận vào thông tin trang hiện tại, tổng số trang, tên tham số trang, #}
+{# ID tab cần focus, và các tham số trang của các tab khác để duy trì trạng thái. #}
+{# ========================================================= #}
+{% macro render_pagination(current_page, total_pages, page_param_name, focus_tab_id, page_cho, page_muon, page_su,
+search_query) %}
+{% if total_pages > 1 %} {# Chỉ hiển thị nếu có nhiều hơn 1 trang #}
+<nav aria-label="Page navigation" class="mt-3">
+    <ul class="pagination justify-content-center">
+
+        {# Nút Lùi #}
+        <li class="page-item {% if current_page == 1 %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('admin.quan_ly_muontra',
+                    search=search_query,
+                    page_cho=page_cho if page_param_name != 'page_cho' else current_page - 1,
+                    page_muon=page_muon if page_param_name != 'page_muon' else current_page - 1,
+                    page_su=page_su if page_param_name != 'page_su' else current_page - 1,
+                    focus_tab=focus_tab_id
+                ) }}">&laquo;</a>
+        </li>
+
+        {# Logic hiển thị số trang và dấu ... #}
+        {% set start_page = [1, current_page - 2] | max %}
+        {% set end_page = [total_pages, current_page + 2] | min %}
+
+        {% if start_page > 1 %}
+        <li class="page-item"><a class="page-link" href="{{ url_for('admin.quan_ly_muontra',
+                search=search_query,
+                page_cho=page_cho if page_param_name != 'page_cho' else 1,
+                page_muon=page_muon if page_param_name != 'page_muon' else 1,
+                page_su=page_su if page_param_name != 'page_su' else 1,
+                focus_tab=focus_tab_id
+            ) }}">1</a></li>
+        {% if start_page > 2 %}<li class="page-item disabled"><span class="page-link">...</span></li>{% endif %}
+        {% endif %}
+
+        {# Hiển thị các trang xung quanh trang hiện tại #}
+        {% for p in range(start_page, end_page + 1) %}
+        <li class="page-item {% if p == current_page %}active{% endif %}">
+            <a class="page-link" href="{{ url_for('admin.quan_ly_muontra',
+                    search=search_query,
+                    page_cho=page_cho if page_param_name != 'page_cho' else p,
+                    page_muon=page_muon if page_param_name != 'page_muon' else p,
+                    page_su=page_su if page_param_name != 'page_su' else p,
+                    focus_tab=focus_tab_id
+                ) }}">{{ p }}</a>
+        </li>
+        {% endfor %}
+
+        {# Hiển thị dấu ... và trang cuối #}
+        {% if end_page < total_pages %} {% if end_page < total_pages - 1 %}<li class="page-item disabled"><span
+                class="page-link">...</span></li>{% endif %}
+            <li class="page-item"><a class="page-link" href="{{ url_for('admin.quan_ly_muontra',
+                    search=search_query,
+                    page_cho=page_cho if page_param_name != 'page_cho' else total_pages,
+                    page_muon=page_muon if page_param_name != 'page_muon' else total_pages,
+                    page_su=page_su if page_param_name != 'page_su' else total_pages,
+                    focus_tab=focus_tab_id
+                ) }}">{{ total_pages }}</a></li>
+            {% endif %}
+
+            {# Nút Tiến #}
+            <li class="page-item {% if current_page == total_pages %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('admin.quan_ly_muontra',
+                        search=search_query,
+                        page_cho=page_cho if page_param_name != 'page_cho' else current_page + 1,
+                        page_muon=page_muon if page_param_name != 'page_muon' else current_page + 1,
+                        page_su=page_su if page_param_name != 'page_su' else current_page + 1,
+                        focus_tab=focus_tab_id
+                    ) }}">&raquo;</a>
+            </li>
+    </ul>
+</nav>
+{% endif %}{# Kết thúc if total_pages > 1 #}
+{% endmacro %}{# Kết thúc macro #}
+
+{# ========================================================= #}
+{# KHỐI TIÊU ĐỀ VÀ NÚT HÀNH ĐỘNG CHÍNH #}
+{# ========================================================= #}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Quản Lý Mượn/Trả</h1>
+    <div>
+        <a href="{{ url_for('admin.sach_qua_han') }}" class="btn btn-danger">
+            <i class="fas fa-exclamation-triangle"></i> Xem Sách Quá Hạn
+        </a>
+        <a href="{{ url_for('admin.muon_sach') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Ghi Nhận Mượn (Thủ công)
+        </a>
+    </div>
+</div>
+
+{# ========================================================= #}
+{# FORM TÌM KIẾM #}
+{# Cho phép admin tìm kiếm trong tất cả các tab theo ID đơn, tên sách, tên người mượn. #}
+{# ========================================================= #}
+<form method="GET" action="{{ url_for('admin.quan_ly_muontra') }}" class="mb-3 p-3 bg-light border rounded">
+    <div class="row g-2 align-items-end">
+        <div class="col-md-8">
+            <label for="search" class="form-label">Tìm ID đơn, tên sách, hoặc tên người mượn</label>
+            <input type="text" class="form-control" placeholder="Nhập từ khóa..." id="search" name="search"
+                value="{{ search_query | default('') }}">
+        </div>
+        <div class="col-md-4 d-flex">
+            <button class="btn btn-primary flex-grow-1 me-1" type="submit"><i class="fas fa-filter me-1"></i>
+                Lọc</button>
+            <a href="{{ url_for('admin.quan_ly_muontra') }}" class="btn btn-outline-secondary" title="Xóa bộ lọc"><i
+                    class="fas fa-times"></i></a>
+        </div>
+    </div>
+    {# Các input ẩn để giữ trạng thái phân trang và tab khi submit form tìm kiếm #}
+    <input type="hidden" name="page_cho" value="{{ current_page_cho }}">
+    <input type="hidden" name="page_muon" value="{{ current_page_muon }}">
+    <input type="hidden" name="page_su" value="{{ current_page_su }}">
+    <input type="hidden" name="focus_tab" value="{{ request.args.get('focus_tab', 'dang-cho') }}" id="formFocusTab">
+</form>
+
+{# ========================================================= #}
+{# KHỐI TABS ĐIỀU HƯỚNG #}
+{# Sử dụng Bootstrap Nav Tabs để chia danh sách mượn trả thành 3 loại. #}
+{# ========================================================= #}
+<ul class="nav nav-tabs" id="muonTraTab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="dang-cho-tab" data-bs-toggle="tab" data-bs-target="#dang-cho-pane"
+            type="button" role="tab" aria-controls="dang-cho-pane" aria-selected="true">
+            Sách Đang Chờ Lấy
+            {% if total_cho > 0 %}
+            <span class="badge bg-warning text-dark">{{ total_cho }}</span> {# Badge đếm số lượng #}
+            {% endif %}
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="dang-muon-tab" data-bs-toggle="tab" data-bs-target="#dang-muon-pane" type="button"
+            role="tab" aria-controls="dang-muon-pane" aria-selected="false">
+            Sách Đang Mượn
+            {% if total_muon > 0 %}
+            <span class="badge bg-info">{{ total_muon }}</span> {# Badge đếm số lượng #}
+            {% endif %}
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="lich-su-tab" data-bs-toggle="tab" data-bs-target="#lich-su-pane" type="button"
+            role="tab" aria-controls="lich-su-pane" aria-selected="false">
+            Lịch Sử
+        </button>
+    </li>
+</ul>
+
+{# ========================================================= #}
+{# NỘI DUNG CÁC TAB (Tab Content) #}
+{# ========================================================= #}
+<div class="tab-content" id="muonTraTabContent">
+
+    {# --- Nội dung Tab 1: Sách Đang Chờ Lấy --- #}
+    <div class="tab-pane fade show active" id="dang-cho-pane" role="tabpanel" aria-labelledby="dang-cho-tab"
+        tabindex="0">
+        <div class="table-responsive mt-3">
+            <table class="table table-striped table-bordered">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Tiêu Đề Sách</th>
+                        <th>Người Mượn</th>
+                        <th style="width: 80px;">ID Đơn</th>
+                        <th>Ngày Đặt (Hẹn lấy)</th>
+                        <th>Ngày Hẹn Trả</th>
+                        <th>Số Lượng</th>
+                        <th style="width: 240px;">Hành Động</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBodyChoLay">
+                    {% for cho in danh_sach_cho %}
+                    <tr class="cho-lay-item filterable-row" data-id="{{ cho.id_muon_tra }}">
+                        <td class="col-tieu-de">{{ cho.tieu_de }}</td>
+                        <td class="col-ho-ten">{{ cho.ho_ten }}</td>
+                        <td class="col-id-don">{{ cho.id_muon_tra }}</td>
+                        <td>{{ cho.ngay_muon.strftime('%d-%m-%Y') if cho.ngay_muon else 'N/A' }}</td>
+                        <td>{{ cho.ngay_hen_tra.strftime('%d-%m-%Y') }}</td>
+                        <td>{{ cho.so_luong }}</td>
+                        <td style="width: 240px;" class="d-flex gap-1">
+                            {# Nút mở Modal Xác Nhận Lấy Sách #}
+                            <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal"
+                                data-bs-target="#confirmLaySachModal" data-muon-tra-id="{{ cho.id_muon_tra }}"
+                                data-ho-ten="{{ cho.ho_ten }}"
+                                data-action-url="{{ url_for('admin.xac_nhan_lay_sach', id_muon_tra=cho.id_muon_tra) }}">
+                                Xác Nhận Lấy
+                            </button>
+                            {# Nút mở Modal Hủy Đơn Đặt #}
+                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal"
+                                data-bs-target="#confirmHuyDonModal" data-muon-tra-id="{{ cho.id_muon_tra }}"
+                                data-ho-ten="{{ cho.ho_ten }}"
+                                data-action-url="{{ url_for('admin.huy_dat_sach', id_muon_tra=cho.id_muon_tra) }}">
+                                Hủy
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    {# Placeholder khi không có dữ liệu #}
+                    <tr class="no-results-placeholder">
+                        <td colspan="7" class="text-center"> {# Cập nhật colspan=7 #}
+                            {% if search_query %}
+                            Không tìm thấy lượt đặt nào phù hợp với từ khóa "{{ search_query }}".
+                            {% else %}
+                            Hiện không có sách nào đang chờ lấy.
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {# Hiển thị phân trang cho tab này #}
+        {{ render_pagination(current_page_cho, total_pages_cho, 'page_cho', 'dang-cho', current_page_cho,
+        current_page_muon, current_page_su, search_query) }}
+    </div>
+
+    {# --- Nội dung Tab 2: Sách Đang Mượn --- #}
+    <div class="tab-pane fade" id="dang-muon-pane" role="tabpanel" aria-labelledby="dang-muon-tab" tabindex="0">
+        <div class="table-responsive mt-3">
+            <table class="table table-striped table-bordered">
+                <thead class="table-dark">
+                    <tr>
+                        <th style="width: 80px;">ID Đơn</th>
+                        <th>Tiêu Đề Sách</th>
+                        <th>Người Mượn</th>
+                        <th>Ngày Mượn</th>
+                        <th>Ngày Hẹn Trả</th>
+                        <th>Số Lượng</th>
+                        <th style="width: 150px;">Hành Động</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBodyDangMuon">
+                    {% for muon in danh_sach_muon %}
+                    <tr id="muon-row-{{ muon.id_muon_tra }}"
+                        class="filterable-row {% if muon.ngay_hen_tra < today_date %}table-danger{% endif %}"> {#
+                        Highlight hàng quá hạn #}
+                        <td class="col-id-don">{{ muon.id_muon_tra }}</td>
+                        <td class="col-tieu-de">{{ muon.tieu_de }}</td>
+                        <td class="col-ho-ten">{{ muon.ho_ten }}</td>
+                        <td>{{ muon.ngay_muon.strftime('%d-%m-%Y') if muon.ngay_muon else 'N/A' }}</td>
+                        <td>{{ muon.ngay_hen_tra.strftime('%d-%m-%Y') }}</td>
+                        <td>{{ muon.so_luong }}</td>
+                        <td>
+                            {# Nút mở Modal Xác Nhận Trả Sách #}
+                            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal"
+                                data-bs-target="#confirmTraSachModal" data-muon-tra-id="{{ muon.id_muon_tra }}"
+                                data-action-url="{{ url_for('admin.tra_sach', id_muon_tra=muon.id_muon_tra) }}"
+                                data-tieu-de="{{ muon.tieu_de }}" data-ho-ten="{{ muon.ho_ten }}"
+                                data-is-overdue="{{ 'true' if muon.ngay_hen_tra < today_date else 'false' }}">
+                                Đánh Dấu Đã Trả
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    {# Placeholder khi không có dữ liệu #}
+                    <tr class="no-results-placeholder">
+                        <td colspan="7" class="text-center">
+                            {% if search_query %}
+                            Không tìm thấy sách đang mượn nào phù hợp với từ khóa "{{ search_query }}".
+                            {% else %}
+                            Không có sách nào đang được mượn.
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {# Hiển thị phân trang cho tab này #}
+        {{ render_pagination(current_page_muon, total_pages_muon, 'page_muon', 'dang-muon', current_page_cho,
+        current_page_muon, current_page_su, search_query) }}
+    </div>
+
+    {# --- Nội dung Tab 3: Lịch Sử Mượn/Trả/Hủy --- #}
+    <div class="tab-pane fade" id="lich-su-pane" role="tabpanel" aria-labelledby="lich-su-tab" tabindex="0">
+        <div class="table-responsive mt-3">
+            <table class="table table-striped table-bordered">
+                <thead class="table-dark">
+                    <tr>
+                        <th style="width: 80px;">ID Đơn</th>
+                        <th>Người Mượn</th>
+                        <th>Tên Sách</th>
+                        <th>SL</th>
+                        <th>Ngày Mượn</th>
+                        <th>Ngày Trả/Hủy</th>
+                        <th>Trạng Thái</th>
+                        <th>Tiền Phạt</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBodyLichSu">
+                    {% for ls in lich_su_muon %}
+                    <tr class="filterable-row">
+                        <td class="col-id-don">{{ ls.id_muon_tra }}</td>
+                        <td class="col-ho-ten">{{ ls.ho_ten }}</td>
+                        <td class="col-tieu-de">{{ ls.tieu_de }}</td>
+                        <td>{{ ls.so_luong }}</td>
+                        <td>{{ ls.ngay_muon.strftime('%d-%m-%Y') if ls.ngay_muon else 'N/A' }}</td>
+                        <td>
+                            {{ ls.ngay_tra_thuc.strftime('%d-%m-%Y %H:%M') if ls.ngay_tra_thuc else 'N/A' }}
+                        </td>
+                        <td>
+                            {% if ls.trang_thai == 'Đã trả' %}
+                            <span class="badge bg-success">Đã trả</span>
+                            {% elif ls.trang_thai == 'Đã hủy' %}
+                            <span class="badge bg-danger">Đã hủy</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ ls.trang_thai }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ls.tien_phat and ls.tien_phat > 0 %}
+                            <span class="text-danger fw-bold">{{ "{:,.0f} VND".format(ls.tien_phat) }}</span>
+                            {% else %}
+                            0 VND
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    {# Placeholder khi không có dữ liệu #}
+                    <tr class="no-results-placeholder">
+                        <td colspan="8" class="text-center">
+                            {% if search_query %}
+                            Không tìm thấy lịch sử nào phù hợp với từ khóa "{{ search_query }}".
+                            {% else %}
+                            Chưa có lịch sử mượn trả.
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {# Hiển thị phân trang cho tab này #}
+        {{ render_pagination(current_page_su, total_pages_su, 'page_su', 'lich-su', current_page_cho, current_page_muon,
+        current_page_su, search_query) }}
+    </div>
+</div>
+
+{# ========================================================= #}
+{# CÁC MODAL XÁC NHẬN #}
+{# ========================================================= #}
+
+{# Modal Xác nhận Lấy Sách (Chuyển trạng thái từ Đang chờ -> Đang mượn) #}
+<div class="modal fade" id="confirmLaySachModal" tabindex="-1" aria-labelledby="modalLabelLaySach" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalLabelLaySach">Xác Nhận Lấy Sách</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Bạn có chắc chắn xác nhận độc giả <strong id="modalLaySachHoTen"></strong> ĐÃ LẤY sách này?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-success" id="confirmLaySachSubmitBtn">Xác Nhận Đã Lấy</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{# Modal Hủy Đơn Đặt (Chuyển trạng thái Đang chờ -> Đã hủy, hoàn sách về kho) #}
+<div class="modal fade" id="confirmHuyDonModal" tabindex="-1" aria-labelledby="modalLabelHuyDon" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalLabelHuyDon">Xác Nhận Hủy Đơn Đặt</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Bạn có chắc chắn muốn HỦY đơn đặt của <strong id="modalHuyDonHoTen"></strong>? <br>
+                Sách sẽ được hoàn trả về kho.
+            </div>
+            <div class="modal-footer">
+                {# Bỏ thẻ <form> đi #}
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    {# Thay type="submit" thành type="button" và thêm ID #}
+                    <button type="button" class="btn btn-danger" id="confirmHuyDonSubmitBtn">Xác Nhận Hủy Đơn</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Modal Xác nhận Trả Sách (Chuyển trạng thái Đang mượn -> Đã trả, tính phí phạt nếu có) #}
+<div class="modal fade" id="confirmTraSachModal" tabindex="-1" aria-labelledby="modalLabelTraSach" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalLabelTraSach">Xác Nhận Trả Sách</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Bạn có chắc chắn muốn đánh dấu sách <strong id="modalTraSachTieuDe"></strong> của độc giả <strong
+                        id="modalTraSachHoTen"></strong> là ĐÃ TRẢ?</p>
+                <div id="modalTraSachWarning" class="alert alert-warning" style="display: none;">
+                    <strong>Lưu ý:</strong> Sách này đã quá hạn! Tiền phạt sẽ được tự động tính toán và ghi nhận sau khi
+                    bạn xác nhận.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" id="traSachSubmitButton">Xác Nhận Trả Sách</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{# ========================================================= #}
+{# BLOCK SCRIPTS: Chứa mã JavaScript cho trang #}
+{# ========================================================= #}
+{% block scripts %}
+{{ super() }} {# Nhúng các script chung từ base.html (như getCsrfToken, showNotification) #}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+
+        // =========================================================
+        // KHỐI 1: HÀM TIỆN ÍCH (HELPER FUNCTIONS)
+        // =========================================================
+
+        /**
+         * Lấy giá trị CSRF token từ thẻ meta trong HTML.
+         * @returns {string|null} Giá trị token hoặc null nếu không tìm thấy.
+         */
+        function getCsrfToken() {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            return meta ? meta.getAttribute('content') : null;
+        }
+
+        /**
+         * Kiểm tra xem bảng có dữ liệu hay không và ẩn/hiện dòng placeholder.
+         * @param {string} tableBodyId - ID của tbody cần kiểm tra.
+         */
+        function checkTablePlaceholder(tableBodyId) {
+            const tableBody = document.getElementById(tableBodyId);
+            if (!tableBody) return;
+            const placeholder = tableBody.querySelector('.no-results-placeholder');
+            // Đếm các hàng có class filterable-row (là các hàng dữ liệu thực tế)
+            const visibleRows = tableBody.querySelectorAll('.filterable-row');
+            if (placeholder) {
+                // Nếu không có hàng dữ liệu nào -> hiện placeholder, ngược lại ẩn đi
+                placeholder.style.display = (visibleRows.length === 0) ? '' : 'none';
+            }
+        }
+
+        /**
+         * Cập nhật số lượng hiển thị trên badge của tab (Đang chờ/Đang mượn).
+         * @param {HTMLElement|null} badgeElement - Phần tử badge cần cập nhật.
+         * @param {number} increment - Số lượng tăng/giảm (ví dụ: -1 khi xóa 1 hàng).
+         */
+        function updateBadgeCount(badgeElement, increment) {
+            if (!badgeElement) return;
+            let currentCount = parseInt(badgeElement.textContent.trim(), 10) || 0;
+            let newCount = currentCount + increment;
+            // Hiển thị số lượng mới nếu > 0, ngược lại hiển thị chuỗi rỗng (ẩn badge)
+            badgeElement.textContent = (newCount > 0) ? newCount : '';
+        }
+
+        // =========================================================
+        // KHỐI 2: KHỞI TẠO VÀ XỬ LÝ TRẠNG THÁI TAB
+        // =========================================================
+
+        // Lấy tham chiếu đến các badge đếm trên các tab
+        const badgeCho = document.querySelector('#dang-cho-tab .badge');
+        const badgeMuon = document.querySelector('#dang-muon-tab .badge');
+
+        // Lấy các tham số URL hiện tại (để duy trì khi phân trang/lọc)
+        const baseUrl = "{{ url_for('admin.quan_ly_muontra') }}";
+        const searchParam = new URLSearchParams(window.location.search).get('search') || '';
+        const pageChoParam = new URLSearchParams(window.location.search).get('page_cho') || '1';
+        const pageMuonParam = new URLSearchParams(window.location.search).get('page_muon') || '1';
+        const pageSuParam = new URLSearchParams(window.location.search).get('page_su') || '1';
+
+        // Tự động kích hoạt tab dựa trên tham số 'focus_tab' trên URL khi tải trang
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const tabToFocus = urlParams.get('focus_tab');
+            if (tabToFocus) {
+                const tabButton = document.querySelector(`#${tabToFocus}-tab`);
+                if (tabButton) new bootstrap.Tab(tabButton).show(); // Sử dụng Bootstrap API để hiển thị tab
+            }
+        } catch (e) { console.error("Lỗi khi kích hoạt tab:", e); }
+
+        // Lưu ID của tab đang active vào input ẩn của form tìm kiếm khi chuyển tab
+        // Mục đích: Giữ lại tab đang xem sau khi submit form tìm kiếm/lọc
+        document.querySelectorAll('#muonTraTab .nav-link').forEach(tabButton => {
+            tabButton.addEventListener('shown.bs.tab', function (event) {
+                // Lấy ID của tab mới được hiển thị (bỏ phần '-tab')
+                const focusTabId = event.target.id.replace('-tab', '');
+                const hiddenInput = document.getElementById('formFocusTab');
+                if (hiddenInput) hiddenInput.value = focusTabId; // Cập nhật giá trị input ẩn
+            });
+        });
+
+        // =========================================================
+        // KHỐI 3: XỬ LÝ MODAL XÁC NHẬN LẤY SÁCH (AJAX)
+        // Mục đích: Chuyển trạng thái đơn mượn từ "Đang chờ" sang "Đang mượn"
+        // Công nghệ: Bootstrap Modal, Fetch API (AJAX POST), Async/Await
+        // =========================================================
+        const laySachModalEl = document.getElementById('confirmLaySachModal');
+        if (laySachModalEl) {
+            const laySachModal = new bootstrap.Modal(laySachModalEl); // Khởi tạo đối tượng Modal Bootstrap
+            const modalHoTenSpan = laySachModalEl.querySelector('#modalLaySachHoTen'); // Span hiển thị tên người mượn
+            const confirmBtn = laySachModalEl.querySelector('#confirmLaySachSubmitBtn'); // Nút xác nhận trong modal
+            let currentActionUrl = ''; // Biến lưu URL API để gửi request
+            let currentRowElement = null; // Biến lưu tham chiếu đến hàng <tr> trong bảng
+
+            // Sự kiện được kích hoạt trước khi modal hiển thị: Cập nhật thông tin modal
+            laySachModalEl.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget; // Nút "Xác Nhận Lấy" đã được click
+                const hoTen = button.getAttribute('data-ho-ten');
+                currentActionUrl = button.getAttribute('data-action-url'); // Lấy URL API từ data attribute
+                const muonTraId = button.getAttribute('data-muon-tra-id');
+
+                // Tìm hàng <tr> tương ứng trong bảng "Đang chờ"
+                currentRowElement = document.querySelector(`#tableBodyChoLay tr[data-id="${muonTraId}"]`);
+
+                // Cập nhật nội dung và trạng thái nút trong modal
+                modalHoTenSpan.textContent = `'${hoTen}'`;
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = 'Xác Nhận Đã Lấy';
+            });
+
+            // Sự kiện click nút "Xác Nhận Đã Lấy" trong modal: Gửi request AJAX
+            confirmBtn.addEventListener('click', async function () {
+                // Kiểm tra xem có đủ thông tin cần thiết không
+                if (!currentActionUrl || !currentRowElement) {
+                    console.error("Thiếu URL hoặc phần tử hàng cho hành động Xác nhận lấy.");
+                    return;
+                }
+
+                // Vô hiệu hóa nút và hiển thị trạng thái loading
+                const originalButtonText = confirmBtn.innerHTML;
+                confirmBtn.disabled = true;
+                confirmBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Đang xử lý...`;
+
+                const csrfToken = getCsrfToken(); // Lấy CSRF token
+                const headers = { 'X-CSRFToken': csrfToken }; // Tạo header cho request
+
+                try {
+                    // Gửi request POST bằng Fetch API
+                    const response = await fetch(currentActionUrl, { method: 'POST', headers: headers });
+                    const data = await response.json(); // Đọc phản hồi JSON
+
+                    laySachModal.hide(); // Đóng modal
+
+                    // Xử lý kết quả trả về từ server
+                    if (response.ok && data.success) {
+                        // Nếu thành công:
+                        currentRowElement.remove(); // Xóa hàng khỏi bảng "Đang chờ"
+                        updateBadgeCount(badgeCho, -1); // Giảm số lượng trên badge tab "Đang chờ"
+                        checkTablePlaceholder('tableBodyChoLay'); // Kiểm tra lại placeholder
+                        console.log("Xác nhận lấy sách thành công."); // Log ra console (chỉ để debug)
+                        // Lưu ý: Không tự động tăng badge tab "Đang mượn" vì dữ liệu sẽ được cập nhật khi tải lại/chuyển trang
+                    } else {
+                        // Nếu lỗi: Ném lỗi để được xử lý ở khối catch
+                        throw new Error(data.error || `Lỗi server: ${response.status}.`);
+                    }
+                } catch (error) {
+                    // Xử lý lỗi (mạng hoặc logic)
+                    console.error('Lỗi khi xác nhận lấy (modal):', error);
+                    showNotification(`Đã xảy ra lỗi: ${error.message}. Vui lòng thử lại.`, 'danger'); // Hiển thị thông báo lỗi
+                } finally {
+                    // Khôi phục trạng thái nút và reset biến
+                    confirmBtn.disabled = false;
+                    confirmBtn.innerHTML = originalButtonText;
+                    currentActionUrl = '';
+                    currentRowElement = null;
+                }
+            });
+        } // Kết thúc if (laySachModalEl)
+
+        // =========================================================
+        // KHỐI 4: XỬ LÝ MODAL HỦY ĐƠN (Gửi POST Form thường)
+        // Mục đích: Chuyển trạng thái đơn mượn từ "Đang chờ" sang "Đã hủy", hoàn sách về kho
+        // Công nghệ: Bootstrap Modal, Submit Form truyền thống (không AJAX)
+        // =========================================================
+        const huyDonModal = document.getElementById('confirmHuyDonModal');
+        if (huyDonModal) {
+            const modalHoTen = huyDonModal.querySelector('#modalHuyDonHoTen'); // Span hiển thị tên người mượn
+            const modalForm = huyDonModal.querySelector('#huyDonForm'); // Form sẽ được submit
+
+            // Sự kiện được kích hoạt trước khi modal hiển thị: Cập nhật thông tin modal
+            huyDonModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget; // Nút "Hủy" đã được click
+                const hoTen = button.getAttribute('data-ho-ten');
+                const actionUrl = button.getAttribute('data-action-url'); // Lấy URL API từ data attribute
+                modalHoTen.textContent = `'${hoTen}'`; // Cập nhật tên
+                modalForm.action = actionUrl; // Cập nhật action của form
+            });
+
+            // Lưu ý: Form này sẽ được submit theo cách truyền thống.
+            // Server (Flask) sẽ xử lý request, sau đó redirect trở lại trang này.
+            // Tham số 'focus_tab=dang-cho' trong URL redirect sẽ giúp hiển thị lại đúng tab.
+        } // Kết thúc if (huyDonModal)
+
+        // =========================================================
+        // KHỐI 5: XỬ LÝ MODAL TRẢ SÁCH (AJAX)
+        // Mục đích: Chuyển trạng thái đơn mượn từ "Đang mượn" sang "Đã trả", tính và ghi nhận tiền phạt (nếu có)
+        // Công nghệ: Bootstrap Modal, Fetch API (AJAX POST), Async/Await
+        // =========================================================
+        const traSachModalEl = document.getElementById('confirmTraSachModal');
+        if (traSachModalEl) {
+            const traSachModal = new bootstrap.Modal(traSachModalEl); // Khởi tạo đối tượng Modal Bootstrap
+            const modalHoTen = traSachModalEl.querySelector('#modalTraSachHoTen'); // Span tên người mượn
+            const modalTieuDe = traSachModalEl.querySelector('#modalTraSachTieuDe'); // Span tên sách
+            const modalWarning = traSachModalEl.querySelector('#modalTraSachWarning'); // Div cảnh báo quá hạn
+            const submitButton = traSachModalEl.querySelector('#traSachSubmitButton'); // Nút xác nhận trong modal
+            let currentActionUrl = ''; // Biến lưu URL API
+            let currentRowElement = null; // Biến lưu tham chiếu đến hàng <tr>
+
+            // Sự kiện được kích hoạt trước khi modal hiển thị: Cập nhật thông tin modal
+            traSachModalEl.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget; // Nút "Đánh Dấu Đã Trả" đã click
+                const hoTen = button.getAttribute('data-ho-ten');
+                const tieuDe = button.getAttribute('data-tieu-de');
+                const actionUrl = button.getAttribute('data-action-url'); // Lấy URL API
+                const isOverdue = button.getAttribute('data-is-overdue') === 'true'; // Kiểm tra sách có quá hạn không
+
+                // Cập nhật nội dung và trạng thái các element trong modal
+                modalHoTen.textContent = `'${hoTen}'`;
+                modalTieuDe.textContent = `'${tieuDe}'`;
+                currentActionUrl = actionUrl;
+                currentRowElement = button.closest('tr'); // Lấy hàng <tr> chứa nút được click
+                modalWarning.style.display = isOverdue ? 'block' : 'none'; // Hiển thị/ẩn cảnh báo quá hạn
+                submitButton.disabled = false;
+                submitButton.innerHTML = 'Xác Nhận Trả Sách';
+            });
+
+            // Sự kiện click nút "Xác Nhận Trả Sách" trong modal: Gửi request AJAX
+            submitButton.addEventListener('click', async function () {
+                if (!currentActionUrl || !currentRowElement) return; // Kiểm tra
+
+                // Vô hiệu hóa nút và hiển thị loading
+                const originalButtonText = submitButton.innerHTML;
+                submitButton.disabled = true;
+                submitButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Đang xử lý...`;
+
+                const csrfToken = getCsrfToken(); // Lấy CSRF token
+                const headers = { 'X-CSRFToken': csrfToken }; // Tạo header
+
+                try {
+                    // Gửi request POST bằng Fetch API
+                    const response = await fetch(currentActionUrl, { method: 'POST', headers: headers });
+                    const data = await response.json(); // Đọc phản hồi JSON
+
+                    traSachModal.hide(); // Đóng modal
+
+                    // Xử lý kết quả trả về
+                    if (response.ok && data.success) {
+                        // Nếu thành công:
+                        currentRowElement.remove(); // Xóa hàng khỏi bảng "Đang mượn"
+                        updateBadgeCount(badgeMuon, -1); // Giảm số lượng trên badge tab "Đang mượn"
+                        checkTablePlaceholder('tableBodyDangMuon'); // Kiểm tra lại placeholder
+                        showNotification(data.message, 'success'); // Hiển thị thông báo (có thể bao gồm tiền phạt)
+                        // Lưu ý: Việc cập nhật tab Lịch sử sẽ tự động khi tải lại trang hoặc chuyển tab.
+                    } else {
+                        // Nếu lỗi: Ném lỗi
+                        throw new Error(data.error || `Lỗi server: ${response.status}.`);
+                    }
+                } catch (error) {
+                    // Xử lý lỗi
+                    console.error('Lỗi khi trả sách:', error);
+                    showNotification(`Đã xảy ra lỗi khi trả sách: ${error.message}. Vui lòng thử lại.`, 'danger'); // Hiển thị lỗi
+                } finally {
+                    // Khôi phục trạng thái nút và reset biến
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonText;
+                    currentActionUrl = '';
+                    currentRowElement = null;
+                }
+            });
+        } // Kết thúc if (traSachModalEl)
+
+        // =========================================================
+        // KHỐI 6: XỬ LÝ MODAL HỦY ĐƠN (AJAX) - THAY THẾ FORM SUBMIT
+        // Mục đích: Chuyển trạng thái "Đang chờ" -> "Đã hủy", hoàn sách
+        // Công nghệ: Bootstrap Modal, Fetch API (AJAX POST), Async/Await
+        // =========================================================
+        const huyDonModalEl = document.getElementById('confirmHuyDonModal');
+        if (huyDonModalEl) {
+            const huyDonModal = new bootstrap.Modal(huyDonModalEl);
+            const modalHoTenSpan = huyDonModalEl.querySelector('#modalHuyDonHoTen');
+            const confirmBtn = huyDonModalEl.querySelector('#confirmHuyDonSubmitBtn');
+            let currentActionUrl = '';
+            let currentRowElement = null;
+
+            // Sự kiện trước khi modal hiển thị: Cập nhật thông tin
+            huyDonModalEl.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget; // Nút "Hủy" đã click
+                const hoTen = button.getAttribute('data-ho-ten');
+                currentActionUrl = button.getAttribute('data-action-url'); // Lấy URL từ nút
+                const muonTraId = button.getAttribute('data-muon-tra-id');
+
+                // Tìm hàng <tr> tương ứng trong bảng "Đang chờ"
+                currentRowElement = document.querySelector(`#tableBodyChoLay tr[data-id="${muonTraId}"]`);
+
+                // Cập nhật modal
+                modalHoTenSpan.textContent = `'${hoTen}'`;
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = 'Xác Nhận Hủy Đơn';
+            });
+
+            // Sự kiện click nút "Xác Nhận Hủy Đơn": Gửi AJAX
+            confirmBtn.addEventListener('click', async function () {
+                if (!currentActionUrl || !currentRowElement) {
+                    console.error("Thiếu URL hoặc phần tử hàng cho hành động Hủy đơn.");
+                    return;
+                }
+
+                // --- Hiển thị loading ---
+                const originalButtonText = confirmBtn.innerHTML;
+                confirmBtn.disabled = true;
+                confirmBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Đang xử lý...`;
+
+                const csrfToken = getCsrfToken();
+                const headers = { 'X-CSRFToken': csrfToken };
+
+                try {
+                    // --- Gửi request POST ---
+                    const response = await fetch(currentActionUrl, { method: 'POST', headers: headers });
+                    const data = await response.json();
+
+                    huyDonModal.hide(); // Đóng modal
+
+                    // --- Xử lý kết quả ---
+                    if (response.ok && data.success) {
+                        currentRowElement.remove(); // Xóa hàng khỏi bảng "Đang chờ"
+                        updateBadgeCount(badgeCho, -1); // Giảm số badge
+                        checkTablePlaceholder('tableBodyChoLay'); // Kiểm tra placeholder
+                        showNotification(data.message, 'info'); // Hiển thị thông báo thành công
+                    } else {
+                        throw new Error(data.error || `Lỗi server: ${response.status}.`);
+                    }
+                } catch (error) {
+                    // --- Xử lý lỗi ---
+                    console.error('Lỗi khi hủy đơn (modal AJAX):', error);
+                    showNotification(`Đã xảy ra lỗi khi hủy đơn: ${error.message}.`, 'danger');
+                } finally {
+                    // --- Khôi phục nút & reset ---
+                    confirmBtn.disabled = false;
+                    confirmBtn.innerHTML = originalButtonText;
+                    currentActionUrl = '';
+                    currentRowElement = null;
+                }
+            });
+        } // Kết thúc if (huyDonModalEl)
+    }); // Kết thúc sự kiện DOMContentLoaded
+</script>
+{% endblock %}

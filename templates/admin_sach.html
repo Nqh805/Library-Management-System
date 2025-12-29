@@ -1,0 +1,439 @@
+{% extends "base.html" %} {# Kế thừa layout từ base.html #}
+{% block title %}Quản Lý Sách{% endblock %} {# Đặt tiêu đề trang #}
+
+{# ========================================================= #}
+{# BLOCK CONTENT: Nội dung chính của trang Quản Lý Sách (Admin) #}
+{# Hiển thị danh sách sách dưới dạng bảng, cho phép tìm kiếm, lọc, #}
+{# phân trang, và thực hiện các hành động như thêm mới, sửa, ẩn/khôi phục sách. #}
+{# ========================================================= #}
+{% block content %}
+
+{# ========================================================= #}
+{# KHỐI TIÊU ĐỀ VÀ NÚT THÊM MỚI #}
+{# ========================================================= #}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Danh Sách Sách</h1>
+    {# Nút chuyển đến trang thêm sách mới #}
+    <a href="{{ url_for('admin.them_sach') }}" class="btn btn-primary"> <i class="fas fa-plus me-1"></i> Thêm Sách
+        Mới</a>
+</div>
+
+{# ========================================================= #}
+{# FORM TÌM KIẾM VÀ LỌC SÁCH #}
+{# Gửi request GET để lọc danh sách sách hiển thị trong bảng. #}
+{# ========================================================= #}
+<form method="GET" action="{{ url_for('admin.quan_ly_sach') }}" class="mb-4 p-3 bg-light border rounded">
+    <div class="row g-2 align-items-end"> {# align-items-end để căn chỉnh các nút thẳng hàng #}
+        {# Input tìm kiếm theo Tiêu đề / Tác giả #}
+        <div class="col-md-4">
+            <label for="search" class="form-label">Tìm Tiêu đề / Tác giả</label>
+            <input type="text" class="form-control" placeholder="Nhập từ khóa..." id="search" name="search"
+                value="{{ search_query | default('') }}"> {# Giữ lại giá trị tìm kiếm cũ #}
+        </div>
+        {# Dropdown lọc theo Tác giả (sử dụng TomSelect) #}
+        <div class="col-md-2">
+            <label for="id_tac_gia" class="form-label">Tác giả</label>
+            <select id="id_tac_gia" name="id_tac_gia" placeholder="Chọn tác giả...">
+                <option value="">Tất cả</option> {# Lựa chọn mặc định #}
+                {% for tg in all_tac_gia %} {# Lặp qua danh sách tác giả từ context #}
+                {# Đánh dấu selected nếu ID tác giả trùng với giá trị đã chọn trước đó #}
+                <option value="{{ tg.id_tac_gia }}" {% if tg.id_tac_gia|string==selected_tac_gia %}selected{% endif %}>
+                    {{ tg.ten_tac_gia }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        {# Dropdown lọc theo Thể loại (sử dụng TomSelect) #}
+        <div class="col-md-2">
+            <label for="id_the_loai" class="form-label">Thể loại</label>
+            <select id="id_the_loai" name="id_the_loai" placeholder="Chọn thể loại...">
+                <option value="">Tất cả</option>
+                {% for tl in all_the_loai %}
+                <option value="{{ tl.id_the_loai }}" {% if tl.id_the_loai|string==selected_the_loai %}selected{% endif
+                    %}>
+                    {{ tl.ten_the_loai }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        {# Dropdown lọc theo Trạng thái (Hoạt động/Đã ẩn) #}
+        <div class="col-md-2">
+            <label for="trang_thai" class="form-label">Trạng thái</label>
+            <select class="form-select" id="trang_thai" name="trang_thai">
+                <option value="">Tất cả</option>
+                <option value="hoat_dong" {% if selected_trang_thai=='hoat_dong' %}selected{% endif %}>Hoạt động
+                </option>
+                <option value="da_an" {% if selected_trang_thai=='da_an' %}selected{% endif %}>Đã ẩn</option>
+            </select>
+        </div>
+        {# Nút Lọc và Xóa bộ lọc #}
+        <div class="col-md-2 d-flex">
+            <button class="btn btn-primary flex-grow-1 me-1" type="submit"><i class="fas fa-filter me-1"></i>
+                Lọc</button>
+            <a href="{{ url_for('admin.quan_ly_sach') }}" class="btn btn-outline-secondary" title="Xóa bộ lọc"><i
+                    class="fas fa-times"></i></a>
+        </div>
+    </div>
+</form>
+
+{# ========================================================= #}
+{# BẢNG HIỂN THỊ DANH SÁCH SÁCH #}
+{# ========================================================= #}
+<table class="table table-striped table-bordered table-hover align-middle"> {# align-middle căn giữa nội dung theo chiều
+    dọc #}
+    <thead class="table-dark"> {# Header bảng nền tối #}
+        <tr>
+            <th>ID</th>
+            <th style="width: 65px;">Ảnh</th>
+            <th>Tiêu Đề</th>
+            <th>Tác Giả</th>
+            <th>Thể Loại</th>
+            <th>Năm XB</th>
+            <th>Số Trang</th>
+            <th>Số Lượng</th>
+            <th>Trạng thái</th>
+            <th style="width: 180px;">Hành Động</th> {# Cột chứa nút Sửa/Ẩn/Khôi phục #}
+        </tr>
+    </thead>
+    <tbody>
+        {% for sach in danh_sach_sach %} {# Lặp qua danh sách sách từ context #}
+        {# Hàng có thể click để xem chi tiết, ID và data-href cho JavaScript #}
+        <tr class="clickable-row" id="book-row-{{ sach.id_sach }}"
+            data-href="{{ url_for('admin.admin_chi_tiet_sach', id_sach=sach.id_sach) }}">
+            <td>{{ sach.id_sach }}</td>
+            <td class="text-center"> {# Ảnh bìa thumbnail #}
+                <img src="{{ url_for('static', filename='uploads/covers/' ~ (sach.anh_bia | default('default_cover.jpg'))) }}"
+                    alt="{{ sach.tieu_de }}" class="book-thumbnail-admin">
+            </td>
+            <td>{{ sach.tieu_de }}</td>
+            <td>{{ sach.ten_tac_gia | default('N/A') }}</td> {# Hiển thị N/A nếu không có tác giả #}
+            <td>{{ sach.ten_the_loai | default('N/A') }}</td> {# Hiển thị N/A nếu không có thể loại #}
+            <td>{{ sach.nam_xuat_ban }}</td>
+            <td>{{ sach.so_trang if sach.so_trang and sach.so_trang > 0 else 'N/A' }}</td> {# Hiển thị N/A nếu số trang
+            không hợp lệ #}
+            <td>{{ sach.so_luong }}</td>
+            <td id="status-cell-{{ sach.id_sach }}"> {# ID cho JS cập nhật trạng thái #}
+                {# Hiển thị badge trạng thái tương ứng #}
+                {% if sach.trang_thai == 'da_an' %} <span class="badge bg-secondary">Đã ẩn</span>
+                {% else %} <span class="badge bg-success">Hoạt động</span>
+                {% endif %}
+            </td>
+            {# Cột Hành động: chứa nút Sửa, Ẩn hoặc Khôi phục #}
+            {# no-navigate: class để JS ngăn chặn chuyển hướng khi click nút #}
+            {# onclick="event.stopPropagation();": Ngăn sự kiện click lan ra hàng tr #}
+            <td class="action-cell no-navigate" id="action-cell-{{ sach.id_sach }}"> {# ID cho JS cập nhật nút #}
+                {# Nút Sửa #}
+                <a href="{{ url_for('admin.sua_sach', id_sach=sach.id_sach) }}"
+                    class="btn btn-sm btn-warning no-navigate" onclick="event.stopPropagation();">Sửa</a>
+
+                {# Nút Ẩn (hiển thị nếu sách hoạt động) #}
+                {% if sach.trang_thai == 'hoat_dong' %}
+                <button type="button" class="btn btn-sm btn-danger no-navigate" data-bs-toggle="modal"
+                    data-bs-target="#confirmDeleteModal" data-sach-id="{{ sach.id_sach }}"
+                    data-sach-tieu-de="{{ sach.tieu_de }}" onclick="event.stopPropagation();"> Ẩn </button>
+                {# Nút Khôi phục (hiển thị nếu sách đã ẩn) #}
+                {% else %}
+                <button type="button" class="btn btn-sm btn-success no-navigate" data-bs-toggle="modal"
+                    data-bs-target="#confirmRestoreModal" data-sach-id="{{ sach.id_sach }}"
+                    data-sach-tieu-de="{{ sach.tieu_de }}" onclick="event.stopPropagation();"> Khôi phục </button>
+                {% endif %}
+            </td>
+        </tr>
+        {% else %} {# Hiển thị nếu danh_sach_sach rỗng #}
+        <tr>
+            <td colspan="10" class="text-center">Chưa có sách nào trong thư viện hoặc không tìm thấy kết quả phù hợp.
+            </td> {# Cập nhật colspan=10 #}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{# ========================================================= #}
+{# KHỐI PHÂN TRANG #}
+{# Hiển thị thanh phân trang nếu có nhiều hơn 1 trang kết quả. #}
+{# Sử dụng logic tương tự macro phân trang ở admin_muontra.html nhưng đơn giản hơn. #}
+{# ========================================================= #}
+{% if total_pages > 1 %}
+<nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center">
+        {# Nút Lùi #}
+        <li class="page-item {% if current_page == 1 %}disabled{% endif %}">
+            {# Tạo URL giữ nguyên các tham số lọc/tìm kiếm #}
+            <a class="page-link"
+                href="{{ url_for('admin.quan_ly_sach', page=current_page - 1, search=search_query, id_tac_gia=selected_tac_gia, id_the_loai=selected_the_loai, trang_thai=selected_trang_thai) }}"
+                aria-label="Previous">
+                <span aria-hidden="true">&laquo;</span>
+            </a>
+        </li>
+        {# Logic hiển thị số trang và dấu ... #}
+        {% set start_page = [1, current_page - 2] | max %}
+        {% set end_page = [total_pages, current_page + 2] | min %}
+        {% if start_page > 1 %}
+        <li class="page-item"><a class="page-link"
+                href="{{ url_for('admin.quan_ly_sach', page=1, search=search_query, id_tac_gia=selected_tac_gia, id_the_loai=selected_the_loai, trang_thai=selected_trang_thai) }}">1</a>
+        </li>
+        {% if start_page > 2 %}<li class="page-item disabled"><span class="page-link">...</span></li>{% endif %}
+        {% endif %}
+        {# Các nút số trang #}
+        {% for p in range(start_page, end_page + 1) %}
+        <li class="page-item {% if p == current_page %}active{% endif %}">
+            <a class="page-link"
+                href="{{ url_for('admin.quan_ly_sach', page=p, search=search_query, id_tac_gia=selected_tac_gia, id_the_loai=selected_the_loai, trang_thai=selected_trang_thai) }}">{{
+                p }}</a>
+        </li>
+        {% endfor %}
+        {# Logic hiển thị dấu ... và trang cuối #}
+        {% if end_page < total_pages %} {% if end_page < total_pages - 1 %}<li class="page-item disabled"><span
+                class="page-link">...</span></li>{% endif %}
+            <li class="page-item"><a class="page-link"
+                    href="{{ url_for('admin.quan_ly_sach', page=total_pages, search=search_query, id_tac_gia=selected_tac_gia, id_the_loai=selected_the_loai, trang_thai=selected_trang_thai) }}">{{
+                    total_pages }}</a></li>
+            {% endif %}
+            {# Nút Tiến #}
+            <li class="page-item {% if current_page == total_pages %}disabled{% endif %}">
+                <a class="page-link"
+                    href="{{ url_for('admin.quan_ly_sach', page=current_page + 1, search=search_query, id_tac_gia=selected_tac_gia, id_the_loai=selected_the_loai, trang_thai=selected_trang_thai) }}"
+                    aria-label="Next">
+                    <span aria-hidden="true">&raquo;</span>
+                </a>
+            </li>
+    </ul>
+</nav>
+{% endif %} {# Kết thúc if total_pages > 1 #}
+
+
+{# ========================================================= #}
+{# CÁC MODAL XÁC NHẬN (Ẩn/Khôi phục) #}
+{# ========================================================= #}
+
+{# --- Modal Xác nhận Ẩn Sách --- #}
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="modalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalLabel">Xác Nhận Ẩn Sách</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Bạn có chắc chắn muốn ẩn sách <strong id="modalSachTieuDe"></strong>? <br> {# Tên sách sẽ được JS điền
+                vào #}
+                Sách sẽ không hiển thị với độc giả nhưng vẫn giữ nguyên lịch sử mượn.
+            </div>
+            <div class="modal-footer">
+                {# Form này sẽ được submit bằng AJAX, action được JS cập nhật #}
+                <form id="deleteForm" method="POST" action="">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" /> {# Thêm CSRF token ẩn #}
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-danger" id="confirmHideSubmitButton">Xác Nhận Ẩn</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# --- Modal Xác nhận Khôi phục Sách --- #}
+<div class="modal fade" id="confirmRestoreModal" tabindex="-1" aria-labelledby="modalLabelRestore" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalLabelRestore">Xác Nhận Khôi Phục Sách</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Bạn có chắc chắn muốn khôi phục sách <strong id="modalRestoreSachTieuDe"></strong>? <br> {# Tên sách sẽ
+                được JS điền vào #}
+                Sách sẽ hiển thị trở lại với độc giả.
+            </div>
+            <div class="modal-footer">
+                {# Form này sẽ được submit bằng AJAX, action được JS cập nhật #}
+                <form id="restoreForm" method="POST" action="">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" /> {# Thêm CSRF token ẩn #}
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-success" id="confirmRestoreSubmitButton">Xác Nhận Khôi
+                        Phục</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %} {# Kết thúc block content #}
+
+
+{# ========================================================= #}
+{# BLOCK SCRIPTS: Chứa mã JavaScript cho trang #}
+{# ========================================================= #}
+{% block scripts %}
+{{ super() }} {# Nhúng các script chung từ base.html #}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+
+        // --- Hàm Helper: Lấy CSRF token ---
+        // (Giả định đã có trong base.html)
+        function getCsrfToken() {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            return meta ? meta.getAttribute('content') : null;
+        }
+
+        // --- Hàm Helper: Xử lý Submit Modal Ẩn/Khôi phục bằng AJAX và Cập nhật UI ---
+        // Hàm này nhận modal, form, nút submit, ID sách và callback để cập nhật giao diện hàng
+        async function handleModalSubmitUpdateRow(modalElement, formElement, submitButton, updateUICallback) {
+            formElement.addEventListener('submit', async function (event) {
+                event.preventDefault(); // Ngăn submit form mặc định
+                const actionUrl = formElement.action; // Lấy URL từ action
+                const originalButtonText = submitButton.innerHTML;
+                const csrfToken = getCsrfToken();
+                const headers = { 'X-CSRFToken': csrfToken }; // Chuẩn bị header
+
+                // Lấy bookId từ data attribute của nút gốc (lưu ý: cách lấy currentBookId ở dưới cần xem lại)
+                // Cần đảm bảo bookId được truyền vào hàm này là ID chính xác của sách đang xử lý
+                const bookId = submitButton.closest('.modal-content').querySelector('form[id$="Form"]').action.split('/').pop(); // Lấy ID từ action URL
+
+                // Hiển thị loading
+                submitButton.disabled = true;
+                submitButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Đang xử lý...`;
+
+                try {
+                    // Gửi POST request bằng Fetch
+                    const response = await fetch(actionUrl, { method: 'POST', headers: headers });
+                    const data = await response.json(); // Đọc JSON
+
+                    if (response.ok && data.success) { // Kiểm tra thành công
+                        // Đóng modal
+                        const modalInstance = bootstrap.Modal.getInstance(modalElement);
+                        if (modalInstance) modalInstance.hide();
+                        // Gọi hàm callback để cập nhật giao diện hàng (status và nút bấm)
+                        if (updateUICallback) updateUICallback(bookId, data);
+                        showNotification(data.message || "Thao tác thành công.", 'success'); // Hiển thị thông báo
+                    } else {
+                        throw new Error(data.error || `Lỗi server: ${response.status}.`); // Ném lỗi
+                    }
+                } catch (error) {
+                    console.error('Lỗi khi submit modal sách:', error);
+                    showNotification(`Đã xảy ra lỗi: ${error.message}.`, 'danger'); // Hiển thị lỗi
+                } finally {
+                    // Luôn kích hoạt lại nút
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonText;
+                }
+            });
+        }
+
+        // --- Khởi tạo TomSelect cho dropdown lọc ---
+        // (Giả định hàm initializeSearchableSelect đã có trong base.html)
+        initializeSearchableSelect('#id_tac_gia');
+        initializeSearchableSelect('#id_the_loai');
+
+        // --- Xử lý Modal ẨN SÁCH ---
+        const hideModalElement = document.getElementById('confirmDeleteModal');
+        if (hideModalElement) {
+            const hideBookForm = document.getElementById('deleteForm');
+            const modalTitleSpan = document.getElementById('modalSachTieuDe');
+            const submitButton = document.getElementById('confirmHideSubmitButton');
+
+            // Cập nhật modal trước khi hiển thị
+            hideModalElement.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget; // Nút "Ẩn" đã click
+                const bookId = button.getAttribute('data-sach-id');
+                const bookTitle = button.getAttribute('data-sach-tieu-de');
+                // Cập nhật tên sách và action URL
+                if (modalTitleSpan) modalTitleSpan.textContent = `'${bookTitle}'`;
+                if (hideBookForm) hideBookForm.action = `/admin/sach/an/${bookId}`;
+                // Thêm CSRF token vào form nếu chưa có (cách an toàn hơn là luôn có thẻ input ẩn)
+                if (!hideBookForm.querySelector('input[name="csrf_token"]')) {
+                    const csrfInput = document.createElement('input');
+                    csrfInput.type = 'hidden';
+                    csrfInput.name = 'csrf_token';
+                    csrfInput.value = getCsrfToken();
+                    hideBookForm.appendChild(csrfInput);
+                }
+            });
+
+            // Gắn listener AJAX và callback cập nhật UI
+            handleModalSubmitUpdateRow(hideModalElement, hideBookForm, submitButton, (id, responseData) => {
+                // Callback function: Cập nhật giao diện hàng sau khi ẩn thành công
+                const statusCell = document.getElementById(`status-cell-${id}`); // Ô trạng thái
+                const actionCell = document.getElementById(`action-cell-${id}`); // Ô hành động
+                const bookTitleElement = document.getElementById(`modalSachTieuDe`); // Lấy tên sách từ modal để dùng lại
+                const bookTitle = bookTitleElement ? bookTitleElement.textContent.slice(1, -1) : 'Sách này';
+
+                if (statusCell && actionCell) {
+                    statusCell.innerHTML = '<span class="badge bg-secondary">Đã ẩn</span>'; // Đổi badge thành "Đã ẩn"
+                    // Thay nút "Ẩn" bằng nút "Khôi phục"
+                    actionCell.innerHTML = `
+                        <a href="/admin/sach/sua/${id}" class="btn btn-sm btn-warning no-navigate" onclick="event.stopPropagation();">Sửa</a>
+                        <button type="button" class="btn btn-sm btn-success no-navigate" data-bs-toggle="modal"
+                            data-bs-target="#confirmRestoreModal" data-sach-id="${id}"
+                            data-sach-tieu-de="${bookTitle}" onclick="event.stopPropagation();"> Khôi phục </button>
+                    `;
+                } else {
+                    console.warn("Không tìm thấy ô trạng thái/hành động để cập nhật, reloading...");
+                    window.location.reload(); // Tải lại trang nếu không tìm thấy cell
+                }
+            });
+        }
+
+        // --- Xử lý Modal KHÔI PHỤC SÁCH ---
+        const restoreModalElement = document.getElementById('confirmRestoreModal');
+        if (restoreModalElement) {
+            const restoreBookForm = document.getElementById('restoreForm');
+            const modalTitleSpan = document.getElementById('modalRestoreSachTieuDe');
+            const submitButton = document.getElementById('confirmRestoreSubmitButton');
+
+            // Cập nhật modal trước khi hiển thị
+            restoreModalElement.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget; // Nút "Khôi phục" đã click
+                const bookId = button.getAttribute('data-sach-id');
+                const bookTitle = button.getAttribute('data-sach-tieu-de');
+                // Cập nhật tên sách và action URL
+                if (modalTitleSpan) modalTitleSpan.textContent = `'${bookTitle}'`;
+                if (restoreBookForm) restoreBookForm.action = `/admin/sach/khoiphuc/${bookId}`;
+                // Thêm CSRF token vào form nếu chưa có
+                if (!restoreBookForm.querySelector('input[name="csrf_token"]')) {
+                    const csrfInput = document.createElement('input');
+                    csrfInput.type = 'hidden';
+                    csrfInput.name = 'csrf_token';
+                    csrfInput.value = getCsrfToken();
+                    restoreBookForm.appendChild(csrfInput);
+                }
+            });
+
+            // Gắn listener AJAX và callback cập nhật UI
+            handleModalSubmitUpdateRow(restoreModalElement, restoreBookForm, submitButton, (id, responseData) => {
+                // Callback function: Cập nhật giao diện hàng sau khi khôi phục thành công
+                const statusCell = document.getElementById(`status-cell-${id}`);
+                const actionCell = document.getElementById(`action-cell-${id}`);
+                const bookTitleElement = document.getElementById(`modalRestoreSachTieuDe`);
+                const bookTitle = bookTitleElement ? bookTitleElement.textContent.slice(1, -1) : 'Sách này';
+
+                if (statusCell && actionCell) {
+                    statusCell.innerHTML = '<span class="badge bg-success">Hoạt động</span>'; // Đổi badge thành "Hoạt động"
+                    // Thay nút "Khôi phục" bằng nút "Ẩn"
+                    actionCell.innerHTML = `
+                         <a href="/admin/sach/sua/${id}" class="btn btn-sm btn-warning no-navigate" onclick="event.stopPropagation();">Sửa</a>
+                         <button type="button" class="btn btn-sm btn-danger no-navigate" data-bs-toggle="modal"
+                             data-bs-target="#confirmDeleteModal" data-sach-id="${id}"
+                             data-sach-tieu-de="${bookTitle}" onclick="event.stopPropagation();"> Ẩn </button>
+                     `;
+                } else {
+                    console.warn("Không tìm thấy ô trạng thái/hành động để cập nhật, reloading...");
+                    window.location.reload(); // Tải lại nếu không tìm thấy cell
+                }
+            });
+        }
+
+        // --- Xử lý Click vào hàng (Chuyển hướng đến trang chi tiết) ---
+        // Lắng nghe sự kiện click trên tất cả các hàng có class 'clickable-row'
+        document.querySelectorAll('.clickable-row').forEach(row => {
+            row.addEventListener('click', function (e) {
+                // Ngăn chuyển hướng nếu click vào phần tử con có class 'no-navigate' (vd: nút Sửa/Ẩn/Khôi phục)
+                if (e.target.closest('.no-navigate')) return;
+                // Lấy URL chi tiết từ thuộc tính data-href của hàng
+                const href = row.getAttribute('data-href');
+                if (href) window.location.href = href; // Chuyển hướng trình duyệt
+            });
+        });
+
+    }); // Kết thúc DOMContentLoaded
+</script>
+{% endblock %} {# Kết thúc block scripts #}

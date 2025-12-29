@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Ghi Nhận Mượn Sách{% endblock %}
+
+{# ========================================================= #}
+{# BLOCK CONTENT: Nội dung chính của trang Ghi Nhận Mượn Sách (Admin) #}
+{# ========================================================= #}
+{% block content %}
+<h1>Ghi Nhận Lượt Mượn Sách Mới</h1>
+
+{# --- Form Ghi Nhận Mượn Sách --- #}
+{# Form này cho phép admin chọn thành viên, sách, số lượng và ngày để ghi nhận một lượt mượn thủ công. #}
+{# Dữ liệu sẽ được gửi bằng phương thức POST truyền thống. #}
+<form method="POST" action="{{ url_for('admin.muon_sach') }}">
+    {# CSRF token để bảo vệ form #}
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+    {# --- Dropdown Chọn Thành Viên --- #}
+    <div class="mb-3">
+        <label for="id_thanh_vien" class="form-label">Chọn Thành Viên</label>
+        {# Sử dụng TomSelect để tạo dropdown tìm kiếm thành viên #}
+        <select class="form-select" id="id_thanh_vien" name="id_thanh_vien" required>
+            <option selected disabled value="">Chọn thành viên...</option>
+            {# Lặp qua danh sách thành viên (chỉ những người hoạt động) từ context Python #}
+            {% for tv in danh_sach_thanh_vien %}
+            <option value="{{ tv.id_thanh_vien }}">{{ tv.ho_ten }} (ID: {{ tv.id_thanh_vien }})</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    {# --- Dropdown Chọn Sách --- #}
+    <div class="mb-3">
+        <label for="id_sach" class="form-label">Chọn Sách (Chỉ hiển thị sách còn trong kho)</label>
+        {# Sử dụng TomSelect để tạo dropdown tìm kiếm sách #}
+        <select class="form-select" id="id_sach" name="id_sach" required>
+            <option selected disabled value="">Chọn sách...</option>
+            {# Lặp qua danh sách sách (chỉ những sách còn hàng và hoạt động) từ context Python #}
+            {% for sach in danh_sach_sach %}
+            {# data-so-luong: Lưu trữ số lượng còn lại của sách để JavaScript sử dụng #}
+            <option value="{{ sach.id_sach }}" data-so-luong="{{ sach.so_luong }}">{{ sach.tieu_de }} (Còn: {{
+                sach.so_luong }})</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    {# --- Input Số Lượng và Ngày --- #}
+    <div class="row">
+        <div class="col-md-4 mb-3">
+            <label for="so_luong_muon" class="form-label">Số lượng mượn</label>
+            {# Input số lượng, min=1, giá trị mặc định là 1 #}
+            <input type="number" class="form-control" id="so_luong_muon" name="so_luong_muon" min="1" value="1"
+                required>
+            {# Thuộc tính 'max' sẽ được JavaScript cập nhật dựa trên sách được chọn #}
+        </div>
+        <div class="col-md-4 mb-3">
+            <label for="ngay_muon" class="form-label">Ngày mượn</label>
+            {# Input chọn ngày mượn, mặc định là hôm nay (được JS đặt) #}
+            <input type="date" class="form-control" id="ngay_muon" name="ngay_muon" required>
+        </div>
+        <div class="col-md-4 mb-3">
+            <label for="ngay_hen_tra" class="form-label">Ngày hẹn trả</label>
+            {# Input chọn ngày hẹn trả, ngày tối thiểu sẽ được JS đặt dựa trên ngày mượn #}
+            <input type="date" class="form-control" id="ngay_hen_tra" name="ngay_hen_tra" required>
+        </div>
+    </div>
+
+    {# --- Nút Submit và Hủy --- #}
+    <button type="submit" class="btn btn-primary">Xác Nhận Cho Mượn</button>
+    <a href="{{ url_for('admin.quan_ly_muontra') }}" class="btn btn-secondary">Hủy</a> {# Nút quay lại trang quản lý
+    mượn trả #}
+</form>
+{% endblock %}
+
+{# ========================================================= #}
+{# BLOCK SCRIPTS: Chứa mã JavaScript cho trang #}
+{# ========================================================= #}
+{% block scripts %}
+{{ super() }} {# Nhúng các script chung từ base.html (bao gồm initializeSearchableSelect) #}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // --- Khởi tạo TomSelect ---
+        // Khởi tạo thư viện TomSelect cho dropdown chọn thành viên và sách
+        // Giả định hàm initializeSearchableSelect đã được định nghĩa trong base.html
+        initializeSearchableSelect('#id_thanh_vien');
+        initializeSearchableSelect('#id_sach');
+
+        // --- Lấy tham chiếu đến các Element cần thiết ---
+        const sachSelect = document.getElementById('id_sach'); // Dropdown chọn sách
+        const soLuongInput = document.getElementById('so_luong_muon'); // Input số lượng mượn
+        const ngayMuonInput = document.getElementById('ngay_muon'); // Input ngày mượn
+        const ngayTraInput = document.getElementById('ngay_hen_tra'); // Input ngày hẹn trả
+
+        // --- Thiết lập giá trị mặc định cho ngày ---
+        // Lấy ngày hôm nay dưới dạng YYYY-MM-DD
+        const today = new Date().toISOString().split('T')[0];
+        // Đặt ngày mượn mặc định là hôm nay
+        ngayMuonInput.value = today;
+        // Đặt ngày hẹn trả tối thiểu ban đầu là hôm nay (sẽ được cập nhật khi ngày mượn thay đổi)
+        ngayTraInput.min = today;
+
+        // --- Cập nhật giới hạn số lượng mượn khi chọn sách ---
+        // Lắng nghe sự kiện 'change' trên dropdown chọn sách
+        sachSelect.addEventListener('change', function () {
+            // Lấy option đang được chọn
+            const selectedOption = this.options[this.selectedIndex];
+            // Lấy giá trị số lượng còn lại từ thuộc tính data-so-luong của option
+            const maxSoLuong = selectedOption.getAttribute('data-so-luong');
+            if (maxSoLuong) {
+                // Nếu lấy được số lượng, đặt thuộc tính 'max' cho input số lượng
+                soLuongInput.max = maxSoLuong;
+                // Nếu giá trị hiện tại trong ô số lượng lớn hơn số lượng còn lại,
+                // tự động giảm giá trị về mức tối đa cho phép.
+                if (parseInt(soLuongInput.value) > parseInt(maxSoLuong)) {
+                    soLuongInput.value = maxSoLuong;
+                }
+            } else {
+                // Nếu không lấy được data-so-luong, xóa thuộc tính 'max' để tránh lỗi
+                soLuongInput.removeAttribute('max');
+            }
+        });
+
+        // --- Đảm bảo ngày hẹn trả luôn sau ngày mượn ---
+        // Lắng nghe sự kiện 'change' trên input ngày mượn
+        ngayMuonInput.addEventListener('change', function () {
+            if (ngayMuonInput.value) { // Chỉ thực hiện nếu ngày mượn có giá trị
+                // Tính ngày hôm sau của ngày mượn đã chọn
+                let nextDay = new Date(ngayMuonInput.value);
+                nextDay.setDate(nextDay.getDate() + 1); // Cộng thêm 1 ngày
+                // Đặt ngày tối thiểu cho ô ngày hẹn trả là ngày hôm sau
+                ngayTraInput.min = nextDay.toISOString().split('T')[0];
+                // Nếu ngày hẹn trả hiện tại nhỏ hơn ngày tối thiểu mới,
+                // cập nhật ngày hẹn trả bằng ngày tối thiểu mới.
+                if (ngayTraInput.value && ngayTraInput.value < ngayTraInput.min) {
+                    ngayTraInput.value = ngayTraInput.min;
+                }
+            } else {
+                // Nếu ngày mượn bị xóa, xóa luôn ràng buộc ngày tối thiểu của ngày hẹn trả
+                ngayTraInput.min = null;
+            }
+        });
+    }); // Kết thúc DOMContentLoaded
+</script>
+{% endblock %}

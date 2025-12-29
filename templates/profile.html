@@ -1,0 +1,800 @@
+{% extends "base.html" %} {# Kế thừa layout từ base.html #}
+{% block title %}Hồ Sơ Của Tôi{% endblock %} {# Đặt tiêu đề trang #}
+
+{# ========================================================= #}
+{# BLOCK CONTENT: Nội dung chính của trang Hồ Sơ Người Dùng #}
+{# Hiển thị thông tin cá nhân và các tab chức năng (Sách đang mượn, #}
+{# Lịch sử, Sách yêu thích, Nhật ký admin) tùy theo vai trò. #}
+{# ========================================================= #}
+{% block content %}
+{# ========================================================= #}
+
+{# ========================================================= #}
+{# KHỐI TIÊU ĐỀ VÀ NÚT HÀNH ĐỘNG CHÍNH #}
+{# ========================================================= #}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Hồ Sơ Của {{ user_info.ho_ten }}</h1> {# Hiển thị tên người dùng #}
+    <div>
+        {# Nút mở Modal Đổi Mật Khẩu #}
+        <button class="btn btn-warning me-2" data-bs-toggle="modal" data-bs-target="#updatePasswordModal">
+            <i class="fas fa-key"></i> Đổi Mật Khẩu
+        </button>
+        {# Nút mở Modal Cập Nhật Thông Tin #}
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#updateProfileModal">
+            <i class="fas fa-edit"></i> Cập nhật thông tin
+        </button>
+    </div>
+</div>
+
+{# ========================================================= #}
+{# KHỐI TABS ĐIỀU HƯỚNG #}
+{# Sử dụng Bootstrap Nav Tabs để chia các khu vực thông tin. #}
+{# Hiển thị các tab khác nhau dựa trên vai trò (doc_gia / quan_ly). #}
+{# ========================================================= #}
+<ul class="nav nav-tabs" id="profileTab" role="tablist">
+    {# Tab Thông Tin Cá Nhân (luôn hiển thị) #}
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="info-tab" data-bs-toggle="tab" data-bs-target="#info-pane" type="button"
+            role="tab" aria-controls="info-pane" aria-selected="true">
+            <i class="fas fa-user-circle me-1"></i> Thông Tin Cá Nhân
+        </button>
+    </li>
+
+    {# Các tab chỉ dành cho Độc Giả #}
+    {% if vai_tro == 'doc_gia' %}
+    {# Tab Sách Đang Mượn (hiển thị badge đếm) #}
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="dang-muon-tab" data-bs-toggle="tab" data-bs-target="#dang-muon-pane" type="button"
+            role="tab" aria-controls="dang-muon-pane" aria-selected="false">
+            <i class="fas fa-book-reader me-1"></i> Sách Đang Mượn
+            {% if sach_dang_muon|length > 0 %}
+            <span class="badge rounded-pill bg-danger ms-1">{{ sach_dang_muon|length }}</span> {# Badge số lượng #}
+            {% endif %}
+        </button>
+    </li>
+    {# Tab Lịch Sử Mượn #}
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history-pane" type="button"
+            role="tab" aria-controls="history-pane" aria-selected="false">
+            <i class="fas fa-history me-1"></i> Lịch Sử Mượn
+        </button>
+    </li>
+    {# Tab Sách Yêu Thích (hiển thị badge đếm) #}
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="yeu-thich-tab" data-bs-toggle="tab" data-bs-target="#yeu-thich-pane" type="button"
+            role="tab" aria-controls="yeu-thich-pane" aria-selected="false">
+            <i class="fas fa-heart me-1"></i> Sách Yêu Thích
+            {% if sach_yeu_thich|length > 0 %}
+            <span class="badge rounded-pill bg-info ms-1">{{ sach_yeu_thich|length }}</span> {# Badge số lượng #}
+            {% endif %}
+        </button>
+    </li>
+    {# Tab chỉ dành cho Quản Lý #}
+    {% elif vai_tro == 'quan_ly' %}
+    {# Tab Nhật Ký Hoạt Động #}
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="nhat-ky-tab" data-bs-toggle="tab" data-bs-target="#nhat-ky-pane" type="button"
+            role="tab" aria-controls="nhat-ky-pane" aria-selected="false">
+            <i class="fas fa-clipboard-list me-1"></i> Nhật Ký Hoạt Động
+        </button>
+    </li>
+    {% endif %}
+</ul>
+
+{# ========================================================= #}
+{# NỘI DUNG CÁC TAB (Tab Content) #}
+{# ========================================================= #}
+<div class="tab-content" id="profileTabContent">
+
+    {# --- Nội dung Tab 1: Thông Tin Cá Nhân --- #}
+    <div class="tab-pane fade show active" id="info-pane" role="tabpanel" aria-labelledby="info-tab" tabindex="0">
+        <div class="card border-0">
+            <div class="card-body p-0">
+                <h5 class="card-title">Chi Tiết</h5>
+                <div class="row">
+                    {# Cột thông tin 1 #}
+                    <div class="col-md-6">
+                        <p><strong>Họ và Tên:</strong> {{ user_info.ho_ten }}</p>
+                        <p><strong>Email:</strong> {{ user_info.email }}</p>
+                        <p><strong>Ngày đăng ký:</strong> {{ user_info.ngay_dang_ky.strftime('%d-%m-%Y') }}</p>
+                    </div>
+                    {# Cột thông tin 2 (hiển thị 'Chưa cập nhật' nếu rỗng) #}
+                    <div class="col-md-6">
+                        <p><strong>Ngày sinh:</strong> {{ user_info.ngay_sinh.strftime('%d-%m-%Y') if
+                            user_info.ngay_sinh else 'Chưa cập nhật' }}</p>
+                        <p><strong>Số điện thoại:</strong> {{ user_info.so_dien_thoai if user_info.so_dien_thoai else
+                            'Chưa cập nhật' }}</p>
+                        <p><strong>Địa chỉ:</strong> {{ user_info.dia_chi if user_info.dia_chi else 'Chưa cập nhật' }}
+                        </p>
+                    </div>
+                </div>
+                {# Hiển thị box thông báo và link đến Dashboard nếu là Quản lý #}
+                {% if vai_tro == 'quan_ly' %}
+                <div class="alert alert-info mt-3">
+                    <h5 class="alert-heading"><i class="fas fa-shield-alt"></i> Hồ sơ Quản lý</h5>
+                    <p>Đây là hồ sơ cá nhân của bạn. Các chức năng quản trị hệ thống có thể được tìm thấy tại Bảng Điều
+                        Khiển.</p>
+                    <hr>
+                    <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-primary"> Đi đến Bảng Điều Khiển <i
+                            class="fas fa-arrow-right ms-1"></i> </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div> {# Kết thúc tab Thông tin cá nhân #}
+
+    {# --- Các tab chỉ dành cho Độc Giả --- #}
+    {% if vai_tro == 'doc_gia' %}
+    {# --- Nội dung Tab 2: Sách Đang Mượn --- #}
+    <div class="tab-pane fade" id="dang-muon-pane" role="tabpanel" aria-labelledby="dang-muon-tab" tabindex="0">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Tên Sách</th>
+                        <th>Số Lượng</th>
+                        <th>Ngày Mượn (Hẹn lấy)</th>
+                        <th>Ngày Hẹn Trả</th>
+                        <th>Trạng Thái</th>
+                        <th>Hành Động</th> {# Cột Hủy/Gia hạn #}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sach in sach_dang_muon %} {# Lặp qua danh sách sách đang mượn/chờ #}
+                    <tr id="borrow-row-{{ sach.id_muon_tra }}"> {# ID cho JS dễ tìm #}
+                        <td>{{ sach.tieu_de }}</td>
+                        <td>{{ sach.so_luong }}</td>
+                        <td>{{ sach.ngay_muon.strftime('%d-%m-%Y') if sach.ngay_muon else 'N/A' }}</td> {# Ngày hẹn lấy
+                        nếu 'Đang chờ' #}
+                        {# Highlight đỏ nếu quá hạn, ID cho JS cập nhật khi gia hạn #}
+                        <td {% if sach.trang_thai !='Đang chờ' and sach.ngay_hen_tra < today_date
+                            %}class="table-danger fw-bold" {% endif %} id="due-date-{{ sach.id_muon_tra }}">
+                            {{ sach.ngay_hen_tra.strftime('%d-%m-%Y') if sach.ngay_hen_tra else 'N/A' }}
+                        </td>
+                        <td> {# Hiển thị trạng thái bằng text màu (CSS định nghĩa ở trên) #}
+                            {% if sach.trang_thai != 'Đang chờ' and sach.ngay_hen_tra < today_date %} <span
+                                class="trang-thai-qua-han">QUÁ HẠN</span>
+                                {% elif sach.trang_thai == 'Đang chờ' %} <span class="trang-thai-cho-duyet">Chờ
+                                    duyệt</span>
+                                {% elif sach.trang_thai == 'Đang mượn' %} <span class="trang-thai-da-muon">Đang
+                                    mượn</span>
+                                {% endif %}
+                        </td>
+                        <td>
+                            {# Nút Hủy (chỉ hiển thị nếu trạng thái là 'Đang chờ') #}
+                            {% if sach.trang_thai == 'Đang chờ' %}
+                            <button class="btn btn-sm btn-outline-danger btn-huy-dat" data-id="{{ sach.id_muon_tra }}"
+                                data-tieu-de="{{ sach.tieu_de }}" data-bs-toggle="modal"
+                                data-bs-target="#confirmHuyDonModal"> Hủy </button>
+                            {# Nút Gia Hạn (chỉ hiển thị nếu 'Đang mượn' và chưa quá hạn) #}
+                            {% elif sach.trang_thai == 'Đang mượn' and sach.ngay_hen_tra >= today_date %}
+                            <button class="btn btn-sm btn-outline-success btn-gia-han" data-id="{{ sach.id_muon_tra }}"
+                                data-tieu-de="{{ sach.tieu_de }}" data-bs-toggle="modal"
+                                data-bs-target="#confirmRenewModal"> Gia Hạn </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %} {# Hiển thị nếu không có sách nào đang mượn/chờ #}
+                    <tr>
+                        <td colspan="6" class="text-center">Bạn hiện không mượn sách nào.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div> {# Kết thúc tab Đang mượn #}
+
+    {# --- Nội dung Tab 3: Lịch Sử Mượn --- #}
+    <div class="tab-pane fade" id="history-pane" role="tabpanel" aria-labelledby="history-tab" tabindex="0">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Tên Sách</th>
+                        <th>Ngày Mượn</th>
+                        <th>Ngày Trả</th>
+                        <th>Trạng Thái</th>
+                        <th>Phí Phạt (nếu có)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sach in lich_su_muon %} {# Lặp qua lịch sử (sách đã trả) #}
+                    <tr>
+                        <td>{{ sach.tieu_de }}</td>
+                        <td>{{ sach.ngay_muon.strftime('%d-%m-%Y') if sach.ngay_muon else 'N/A' }}</td>
+                        <td>{{ sach.ngay_tra_thuc.strftime('%d-%m-%Y %H:%M') if sach.ngay_tra_thuc else 'N/A' }}</td>
+                        <td>
+                            {% if sach.trang_thai == 'Đã trả' %} <span class="trang-thai-da-tra">Đã trả</span>
+                            {% elif sach.trang_thai == 'Đã hủy' %} <span class="trang-thai-da-tra"
+                                style="color: #dc3545;">Đã hủy</span> {# Có thể thêm CSS riêng cho 'Đã hủy' #}
+                            {% endif %}
+                        </td>
+                        <td> {# Hiển thị tiền phạt #}
+                            {% if sach.tien_phat and sach.tien_phat > 0 %}
+                            <span class="text-danger">{{ "{:,.0f} VND".format(sach.tien_phat) }}</span> {# Định dạng
+                            tiền #}
+                            {% else %} 0 VND
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %} {# Hiển thị nếu chưa có lịch sử #}
+                    <tr>
+                        <td colspan="5" class="text-center">Bạn chưa có lịch sử mượn/trả sách.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div> {# Kết thúc tab Lịch sử #}
+
+    {# --- Nội dung Tab 4: Sách Yêu Thích --- #}
+    <div class="tab-pane fade" id="yeu-thich-pane" role="tabpanel" aria-labelledby="yeu-thich-tab" tabindex="0">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 30%;">Tên Sách</th>
+                        <th style="width: 30%;">Tác Giả</th>
+                        <th style="width: 20%;">Trạng Thái</th>
+                        <th style="width: 20%;">Hành Động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sach in sach_yeu_thich %} {# Lặp qua danh sách yêu thích #}
+                    <tr id="favorite-row-{{ sach.id_sach }}"> {# ID cho JS xóa hàng #}
+                        <td>{{ sach.tieu_de }}</td>
+                        <td>{{ sach.ten_tac_gia | default('N/A') }}</td>
+                        <td> {# Trạng thái còn sách hay hết sách #}
+                            {% if sach.so_luong > 0 %} <span class="badge bg-success">Còn Sách</span>
+                            {% else %} <span class="badge bg-danger">Hết Sách</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {# Nút xem chi tiết sách #}
+                            <a href="{{ url_for('core.chi_tiet_sach', id_sach=sach.id_sach, slug=slugify(sach.tieu_de)) }}"
+                                class="btn btn-sm btn-primary">Xem</a>
+                            {# Nút Bỏ thích (kích hoạt AJAX trong JS) #}
+                            <button class="btn btn-sm btn-outline-danger btn-toggle-favorite"
+                                data-id="{{ sach.id_sach }}"> Bỏ thích </button>
+                        </td>
+                    </tr>
+                    {% else %} {# Hiển thị nếu chưa có sách yêu thích #}
+                    <tr>
+                        <td colspan="4" class="text-center">Bạn chưa có sách yêu thích nào.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div> {# Kết thúc tab Yêu thích #}
+    {% endif %} {# Kết thúc khối if vai_tro == 'doc_gia' #}
+
+    {# --- Tab chỉ dành cho Quản Lý --- #}
+    {% if vai_tro == 'quan_ly' %}
+    {# --- Nội dung Tab 5: Nhật Ký Hoạt Động --- #}
+    <div class="tab-pane fade" id="nhat-ky-pane" role="tabpanel" aria-labelledby="nhat-ky-tab" tabindex="0">
+        <h5 class="mb-3">20 Hoạt Động Gần Nhất Của Bạn</h5>
+        <ul class="list-group list-group-flush log-list"> {# Danh sách log, cho phép cuộn #}
+            {% for log in nhat_ky_hoat_dong %} {# Lặp qua danh sách log từ context #}
+            <li class="list-group-item log-list-item">
+                <span class="log-time">{{ log.thoi_gian.strftime('%d-%m-%Y %H:%M') }}</span> {# Thời gian #}
+                <span>{{ log.hanh_dong }}</span> {# Nội dung hành động #}
+            </li>
+            {% else %} {# Hiển thị nếu chưa có log #}
+            <li class="list-group-item text-center text-muted">Chưa có hoạt động nào được ghi lại.</li>
+            {% endfor %}
+        </ul>
+    </div> {# Kết thúc tab Nhật ký #}
+    {% endif %} {# Kết thúc khối if vai_tro == 'quan_ly' #}
+
+</div> {# Kết thúc tab-content #}
+
+{# ========================================================= #}
+{# CÁC MODAL #}
+{# Các hộp thoại ẩn/hiện để Cập nhật thông tin, Đổi mật khẩu, #}
+{# Xác nhận Hủy đơn, Xác nhận Gia hạn. #}
+{# ========================================================= #}
+
+{# --- Modal 1: Cập Nhật Thông Tin Hồ Sơ --- #}
+<div class="modal fade" id="updateProfileModal" tabindex="-1" aria-labelledby="updateProfileModalLabel"
+    aria-hidden="true">
+    {# Form submit truyền thống (không AJAX), có enctype="multipart/form-data" để upload avatar #}
+    <form method="POST" action="{{ url_for('profile.update_profile') }}" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" /> {# CSRF token #}
+        <div class="modal-dialog modal-lg"> {# modal-lg: modal lớn hơn #}
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="updateProfileModalLabel">Cập nhật hồ sơ</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        {# Cột Avatar (upload và xem trước) #}
+                        <div class="col-md-4 d-flex flex-column align-items-center mb-3 mb-md-0">
+                            <h6 class="mb-2">Ảnh Đại Diện</h6>
+                            {# Container cho phép click để mở input file #}
+                            <div class="avatar-upload-container"
+                                onclick="document.getElementById('avatarInput').click();">
+                                <img src="{{ url_for('static', filename='uploads/avatars/' ~ (user_info.avatar | default('default_avatar.png'))) }}"
+                                    alt="Ảnh đại diện" class="avatar-preview" id="avatarPreview"> {# Ảnh xem trước #}
+                                <div class="avatar-overlay"><i class="fas fa-camera"></i></div> {# Icon camera khi hover
+                                #}
+                            </div>
+                            <input type="file" id="avatarInput" name="avatar" class="d-none" accept="image/*"> {# Input
+                            file ẩn #}
+                            <small class="form-text text-muted mt-2">Nhấp vào ảnh để thay đổi</small>
+                        </div>
+                        {# Cột Thông tin cá nhân #}
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="ho_ten" class="form-label">Họ và Tên</label>
+                                <input type="text" class="form-control" id="ho_ten" name="ho_ten"
+                                    value="{{ user_info.ho_ten }}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="ngay_sinh" class="form-label">Ngày Sinh</label>
+                                <input type="date" class="form-control" id="ngay_sinh" name="ngay_sinh"
+                                    value="{{ user_info.ngay_sinh.strftime('%Y-%m-%d') if user_info.ngay_sinh }}">
+                            </div>
+                            <div class="mb-3">
+                                <label for="so_dien_thoai" class="form-label">Số Điện Thoại</label>
+                                <input type="tel" class="form-control" id="so_dien_thoai" name="so_dien_thoai"
+                                    value="{{ user_info.so_dien_thoai if user_info.so_dien_thoai }}">
+                            </div>
+                            <div class="mb-3">
+                                <label for="dia_chi" class="form-label">Địa Chỉ</label>
+                                <textarea class="form-control" id="dia_chi" name="dia_chi"
+                                    rows="2">{{ user_info.dia_chi if user_info.dia_chi }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Lưu Thay Đổi</button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div> {# Kết thúc modal updateProfileModal #}
+
+{# --- Modal 2: Xác Nhận Hủy Đơn Đặt (AJAX) --- #}
+<div class="modal fade" id="confirmHuyDonModal" tabindex="-1" aria-labelledby="confirmHuyDonModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmHuyDonModalLabel">Xác Nhận Hủy Đơn Đặt</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Bạn có chắc chắn muốn hủy đơn đặt sách <strong id="modalHuyDonTieuDe">"[Tên Sách]"</strong>? {# Tên sách
+                (JS điền) #}
+                <br>
+                <small>Hành động này không thể hoàn tác và sách sẽ được hoàn trả về kho.</small>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Không</button>
+                <button type="button" class="btn btn-danger" id="btnConfirmHuy">Có, Xác Nhận Hủy</button> {# Nút này
+                kích hoạt JS #}
+            </div>
+        </div>
+    </div>
+</div> {# Kết thúc modal confirmHuyDonModal #}
+
+{# --- Modal 3: Đổi Mật Khẩu (AJAX) --- #}
+<div class="modal fade" id="updatePasswordModal" tabindex="-1" aria-labelledby="updatePasswordModalLabel"
+    aria-hidden="true">
+    {# Form submit bằng AJAX (JavaScript) #}
+    <form id="passwordUpdateForm" method="POST" action="{{ url_for('profile.update_password') }}" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" /> {# CSRF token #}
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="updatePasswordModalLabel">Đổi Mật Khẩu</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    {# Vùng hiển thị lỗi từ server (vd: mật khẩu cũ sai) #}
+                    <div id="serverPasswordError" class="text-danger small mb-2" style="display: none;"></div>
+                    <div class="mb-3">
+                        <label for="old_password" class="form-label">Mật khẩu cũ</label>
+                        <input type="password" class="form-control" id="old_password" name="old_password" required>
+                        <div class="invalid-feedback" id="oldPasswordError">Vui lòng nhập mật khẩu cũ.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new_password" class="form-label">Mật khẩu mới</label>
+                        <input type="password" class="form-control" id="new_password" name="new_password" required
+                            minlength="6">
+                        <div class="invalid-feedback" id="newPasswordError">Mật khẩu mới phải có ít nhất 6 ký tự.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirm_password" class="form-label">Xác nhận mật khẩu mới</label>
+                        <input type="password" class="form-control" id="confirm_password" name="confirm_password"
+                            required minlength="6">
+                        <div class="invalid-feedback" id="confirmPasswordError">Mật khẩu xác nhận không khớp.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary" id="btnConfirmUpdatePassword">Lưu Thay Đổi</button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div> {# Kết thúc modal updatePasswordModal #}
+
+{# --- Modal 4: Xác Nhận Gia Hạn Sách (AJAX) --- #}
+<div class="modal fade" id="confirmRenewModal" tabindex="-1" aria-labelledby="confirmRenewModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmRenewModalLabel">Xác Nhận Gia Hạn Sách</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Bạn có chắc chắn muốn gia hạn sách <strong id="modalRenewBookTitle">"[Tên Sách]"</strong>? {# Tên sách
+                (JS điền) #}
+                <br>
+                <small>Ngày hẹn trả sẽ được cộng thêm (ví dụ: 7 ngày).</small>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-success" id="btnConfirmRenew">Xác Nhận Gia Hạn</button> {# Nút này
+                kích hoạt JS #}
+            </div>
+        </div>
+    </div>
+</div> {# Kết thúc modal confirmRenewModal #}
+{% endblock %} {# Kết thúc block content #}
+
+
+{# ========================================================= #}
+{# BLOCK SCRIPTS: Chứa mã JavaScript cho trang #}
+{# Xử lý các hành động AJAX: Hủy đơn, Đổi mật khẩu, Gia hạn, #}
+{# Xem trước Avatar, Bỏ thích. #}
+{# ========================================================= #}
+{% block scripts %}
+{{ super() }} {# Nhúng các script chung từ base.html #}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // =========================================================
+        // KHỐI 1: XỬ LÝ HỦY ĐƠN ĐẶT SÁCH (AJAX)
+        // =========================================================
+        /**
+         * Hàm chính xử lý gửi request AJAX POST để hủy đơn đặt.
+         * @param {string} idMuonTra - ID của lượt mượn cần hủy.
+         * @param {HTMLElement} button - Nút "Hủy" gốc đã được click.
+         */
+        async function handleHuyDat(idMuonTra, button) {
+            const originalText = button.innerHTML; // Lưu text gốc của nút
+            button.disabled = true; // Vô hiệu hóa nút
+            button.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`; // Hiển thị loading
+
+            const csrfToken = getCsrfToken();
+            const headers = { 'X-CSRFToken': csrfToken };
+
+            try {
+                // Gửi request POST đến API hủy đơn của user
+                const response = await fetch(`/profile/muontra/huy/${idMuonTra}`, { method: 'POST', headers: headers });
+                // Cố gắng đọc JSON, nếu thất bại (vd: server trả HTML lỗi) thì tạo đối tượng lỗi
+                let data;
+                try { data = await response.json(); }
+                catch (jsonError) { data = { success: false, error: `Lỗi server (mã: ${response.status})` }; }
+
+                if (response.ok && data.success) { // Nếu thành công
+                    showNotification(data.message, 'info'); // Hiển thị thông báo (dùng màu 'info' cho hủy bỏ)
+                    // Xóa hàng <tr> tương ứng khỏi bảng
+                    const rowToRemove = document.getElementById(`borrow-row-${idMuonTra}`);
+                    if (rowToRemove) rowToRemove.remove();
+                    // (Có thể thêm logic cập nhật badge đếm trên tab)
+                } else {
+                    throw new Error(data.error || "Lỗi không xác định"); // Ném lỗi nếu thất bại
+                }
+            } catch (error) { // Xử lý lỗi
+                console.error('Lỗi khi hủy đơn đặt:', error);
+                showNotification(`Lỗi: ${error.message}`, 'danger');
+                button.disabled = false; // Kích hoạt lại nút nếu lỗi
+                button.innerHTML = originalText; // Trả lại text gốc
+            }
+        } // Kết thúc handleHuyDat
+
+        // --- Gắn sự kiện cho Modal Hủy Đơn ---
+        const huyDonModalEl = document.getElementById('confirmHuyDonModal');
+        if (huyDonModalEl) {
+            const huyDonModal = new bootstrap.Modal(huyDonModalEl);
+            const modalTieuDeSpan = document.getElementById('modalHuyDonTieuDe'); // Span tên sách
+            const btnConfirmHuy = document.getElementById('btnConfirmHuy'); // Nút xác nhận trong modal
+
+            // Cập nhật modal trước khi hiển thị
+            huyDonModalEl.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget; // Nút .btn-huy-dat đã click
+                const idMuonTra = button.dataset.id; // Lấy ID
+                const tieuDe = button.dataset.tieuDe; // Lấy tên sách
+                if (modalTieuDeSpan) modalTieuDeSpan.textContent = `"${tieuDe}"`; // Cập nhật tên sách
+                if (btnConfirmHuy) btnConfirmHuy.dataset.id = idMuonTra; // Lưu ID vào nút xác nhận
+            });
+
+            // Gắn sự kiện click cho nút xác nhận trong modal
+            btnConfirmHuy.addEventListener('click', function () {
+                const idMuonTra = this.dataset.id; // Lấy ID đã lưu
+                if (!idMuonTra) return;
+                // Tìm lại nút gốc đã click mở modal
+                const originalButton = document.querySelector(`.btn-huy-dat[data-id="${idMuonTra}"]`);
+                huyDonModal.hide(); // Đóng modal
+                if (originalButton) {
+                    handleHuyDat(idMuonTra, originalButton); // Gọi hàm xử lý AJAX
+                } else { console.error("Không tìm thấy nút hủy gốc!"); }
+            });
+        } // Kết thúc if (huyDonModalEl)
+
+        // =========================================================
+        // KHỐI 2: XỬ LÝ ĐỔI MẬT KHẨU (AJAX + Validation)
+        // =========================================================
+        const passwordUpdateForm = document.getElementById('passwordUpdateForm');
+        if (passwordUpdateForm) {
+            // Lấy các element cần thiết
+            const modalEl = document.getElementById('updatePasswordModal');
+            const passwordModal = new bootstrap.Modal(modalEl);
+            const submitButton = document.getElementById('btnConfirmUpdatePassword');
+            const oldPasswordInput = document.getElementById('old_password');
+            const newPasswordInput = document.getElementById('new_password');
+            const confirmPasswordInput = document.getElementById('confirm_password');
+            const oldPasswordError = document.getElementById('oldPasswordError');
+            const newPasswordError = document.getElementById('newPasswordError');
+            const confirmPasswordError = document.getElementById('confirmPasswordError');
+            const serverPasswordError = document.getElementById('serverPasswordError'); // Hiển thị lỗi từ server
+
+            // Hàm hiển thị lỗi cho từng input
+            function showInputError(inputEl, feedbackEl, message) {
+                inputEl.classList.add('is-invalid');
+                feedbackEl.textContent = message;
+            }
+            // Hàm xóa lỗi cho từng input
+            function clearInputError(inputEl) {
+                inputEl.classList.remove('is-invalid');
+            }
+            // Hàm xóa tất cả trạng thái lỗi
+            function clearAllValidation() {
+                clearInputError(oldPasswordInput);
+                clearInputError(newPasswordInput);
+                clearInputError(confirmPasswordInput);
+                serverPasswordError.textContent = ''; // Xóa lỗi server
+                serverPasswordError.style.display = 'none'; // Ẩn vùng lỗi server
+            }
+
+            // Các hàm kiểm tra validation
+            function validateOldPassword() {
+                clearInputError(oldPasswordInput);
+                if (oldPasswordInput.value.trim() === '') {
+                    showInputError(oldPasswordInput, oldPasswordError, 'Vui lòng nhập mật khẩu cũ.'); return false;
+                } return true;
+            }
+            function validateNewPassword() {
+                clearInputError(newPasswordInput);
+                if (newPasswordInput.value.length < 6) {
+                    showInputError(newPasswordInput, newPasswordError, 'Mật khẩu mới phải có ít nhất 6 ký tự.'); return false;
+                }
+                validateConfirmPassword(false); // Kiểm tra lại confirm pass mà không xóa lỗi của chính nó
+                return true;
+            }
+            function validateConfirmPassword(clearOwnError = true) {
+                if (clearOwnError) clearInputError(confirmPasswordInput);
+                if (newPasswordInput.value.length >= 6) { // Chỉ kiểm tra khớp nếu pass mới đủ dài
+                    if (confirmPasswordInput.value !== newPasswordInput.value) {
+                        showInputError(confirmPasswordInput, confirmPasswordError, 'Mật khẩu xác nhận không khớp.'); return false;
+                    }
+                } else if (confirmPasswordInput.value.trim() !== '') {
+                    showInputError(confirmPasswordInput, confirmPasswordError, 'Mật khẩu mới chưa hợp lệ.'); return false;
+                }
+                return true; // Hợp lệ nếu pass mới đủ dài và khớp, hoặc confirm rỗng
+            }
+
+            // --- Gắn sự kiện ---
+            modalEl.addEventListener('show.bs.modal', function () { // Reset form khi mở modal
+                passwordUpdateForm.reset();
+                clearAllValidation();
+            });
+            oldPasswordInput.addEventListener('blur', validateOldPassword);
+            newPasswordInput.addEventListener('blur', validateNewPassword);
+            confirmPasswordInput.addEventListener('blur', validateConfirmPassword);
+            newPasswordInput.addEventListener('input', () => validateConfirmPassword(false)); // Kiểm tra lại confirm khi gõ new_pass
+
+            // --- Xử lý submit AJAX ---
+            passwordUpdateForm.addEventListener('submit', async function (event) {
+                event.preventDefault(); // Ngăn submit truyền thống
+                clearAllValidation(); // Xóa lỗi cũ
+
+                // Kiểm tra validation phía client
+                const isOldValid = validateOldPassword();
+                const isNewValid = validateNewPassword();
+                const isConfirmValid = validateConfirmPassword();
+                if (!isOldValid || !isNewValid || !isConfirmValid) {
+                    const firstInvalid = passwordUpdateForm.querySelector('.is-invalid');
+                    if (firstInvalid) setTimeout(() => firstInvalid.focus(), 0); // Focus lỗi đầu tiên
+                    return; // Dừng nếu lỗi
+                }
+
+                // Hiển thị loading
+                const btnOriginalText = submitButton.innerHTML;
+                submitButton.disabled = true;
+                submitButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Đang lưu...`;
+                // Chuẩn bị dữ liệu và header
+                const formData = new FormData(passwordUpdateForm);
+                const csrfToken = getCsrfToken();
+                const headers = { 'X-CSRFToken': csrfToken };
+
+                try {
+                    // Gửi request POST
+                    const response = await fetch(passwordUpdateForm.action, { method: 'POST', body: formData, headers: headers });
+                    const data = await response.json();
+
+                    if (response.ok && data.success) { // Nếu thành công
+                        passwordModal.hide(); // Đóng modal
+                        showNotification(data.message, 'success'); // Thông báo thành công
+                    } else { // Nếu lỗi từ server
+                        throw new Error(data.error || 'Lỗi không xác định.');
+                    }
+                } catch (error) { // Xử lý lỗi
+                    // Hiển thị lỗi từ server (vd: mật khẩu cũ sai) trong modal
+                    serverPasswordError.textContent = error.message;
+                    serverPasswordError.style.display = 'block';
+                    if (error.message.toLowerCase().includes("mật khẩu cũ")) {
+                        oldPasswordInput.classList.add('is-invalid'); // Highlight ô mật khẩu cũ
+                    }
+                } finally { // Luôn chạy
+                    // Kích hoạt lại nút
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = btnOriginalText;
+                }
+            }); // Kết thúc event submit
+        } // Kết thúc if (passwordUpdateForm)
+
+        // =========================================================
+        // KHỐI 3: XỬ LÝ GIA HẠN SÁCH (AJAX)
+        // =========================================================
+        const renewModalElement = document.getElementById('confirmRenewModal');
+        if (renewModalElement) {
+            const renewModal = new bootstrap.Modal(renewModalElement);
+            const modalBookTitle = document.getElementById('modalRenewBookTitle'); // Span tên sách
+            const confirmRenewButton = document.getElementById('btnConfirmRenew'); // Nút xác nhận
+            let currentMuonTraId = null; // Biến lưu ID lượt mượn
+
+            // Cập nhật modal trước khi hiển thị
+            renewModalElement.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget; // Nút .btn-gia-han đã click
+                if (!button) return;
+                currentMuonTraId = button.dataset.id; // Lưu ID
+                modalBookTitle.textContent = `'${button.dataset.tieuDe || 'sách này'}'`; // Cập nhật tên sách
+                // Reset nút
+                confirmRenewButton.disabled = false;
+                confirmRenewButton.innerHTML = 'Xác Nhận Gia Hạn';
+            });
+
+            // Gắn sự kiện click cho nút xác nhận gia hạn
+            confirmRenewButton.addEventListener('click', async function () {
+                if (!currentMuonTraId) return;
+
+                // Hiển thị loading
+                const originalText = this.innerHTML;
+                this.disabled = true;
+                this.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Đang xử lý...`;
+                // Chuẩn bị header
+                const csrfToken = getCsrfToken();
+                const headers = { 'X-CSRFToken': csrfToken };
+
+                try {
+                    // Gửi POST request đến API gia hạn
+                    const response = await fetch(`/profile/muontra/giahan/${currentMuonTraId}`, { method: 'POST', headers: headers });
+                    const data = await response.json();
+                    renewModal.hide(); // Đóng modal
+
+                    if (response.ok && data.success) { // Nếu thành công
+                        showNotification(data.message, 'success'); // Thông báo
+
+                        // --- Cập nhật UI ---
+                        // Cập nhật ngày hẹn trả mới trên bảng
+                        const dueDateCell = document.getElementById(`due-date-${currentMuonTraId}`);
+                        if (dueDateCell && data.new_due_date) {
+                            dueDateCell.textContent = data.new_due_date; // Cập nhật text ngày
+                            dueDateCell.classList.remove('table-danger', 'fw-bold'); // Xóa highlight quá hạn (nếu có)
+                        }
+                        // Ẩn nút "Gia Hạn" vừa click
+                        const originalButton = document.querySelector(`.btn-gia-han[data-id="${currentMuonTraId}"]`);
+                        if (originalButton) { originalButton.style.display = 'none'; }
+                    } else { // Nếu lỗi
+                        throw new Error(data.error || 'Lỗi không xác định.');
+                    }
+                } catch (error) { // Xử lý lỗi
+                    console.error('Lỗi khi gia hạn sách:', error);
+                    showNotification(`Lỗi gia hạn: ${error.message}`, 'danger');
+                    // Kích hoạt lại nút nếu lỗi
+                    this.disabled = false;
+                    this.innerHTML = originalText;
+                }
+            }); // Kết thúc event click confirmRenewButton
+
+            // Reset ID khi modal đóng (tùy chọn)
+            renewModalElement.addEventListener('hidden.bs.modal', () => { currentMuonTraId = null; });
+        } // Kết thúc if (renewModalElement)
+
+        // =========================================================
+        // KHỐI 4: XEM TRƯỚC AVATAR KHI CHỌN FILE
+        // =========================================================
+        const avatarInput = document.getElementById('avatarInput'); // Input file ẩn
+        const avatarPreview = document.getElementById('avatarPreview'); // Thẻ img xem trước
+        let currentBlobUrl = null; // Biến lưu URL blob cũ
+
+        if (avatarInput && avatarPreview) {
+            avatarInput.addEventListener('change', function (event) {
+                const file = event.target.files[0]; // Lấy file đã chọn
+                if (file) {
+                    // Giải phóng URL blob cũ (nếu có) để tránh rò rỉ bộ nhớ
+                    if (currentBlobUrl) { URL.revokeObjectURL(currentBlobUrl); }
+                    // Tạo URL tạm thời (blob) cho file mới
+                    currentBlobUrl = URL.createObjectURL(file);
+                    // Hiển thị ảnh mới trong thẻ img
+                    avatarPreview.src = currentBlobUrl;
+                }
+            });
+        }
+
+        // =========================================================
+        // KHỐI 5: XỬ LÝ BỎ THÍCH SÁCH (TRONG TAB YÊU THÍCH) - AJAX
+        // =========================================================
+        function initializeProfileFavorites() {
+            const favoritePane = document.getElementById('yeu-thich-pane'); // Chỉ xử lý trong tab này
+            if (!favoritePane) return;
+
+            const csrfToken = getCsrfToken();
+
+            // Sử dụng event delegation: Lắng nghe click trên toàn bộ 'tbody' của tab
+            const tableBody = favoritePane.querySelector('tbody');
+            if (!tableBody) return;
+
+            tableBody.addEventListener('click', async function (e) {
+                // Kiểm tra xem phần tử được click có phải là nút "Bỏ thích" không
+                const button = e.target.closest('.btn-toggle-favorite');
+                if (!button) return; // Không phải nút bỏ thích -> bỏ qua
+
+                const sachId = button.dataset.id; // Lấy ID sách
+                const row = document.getElementById(`favorite-row-${sachId}`); // Tìm hàng tr
+                if (!sachId || !row) return;
+
+                // Hiển thị loading
+                button.disabled = true;
+                button.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
+
+                try {
+                    // Gọi API toggle favorite (giống như trong base.html)
+                    const response = await fetch(`/api/sach/toggle-favorite/${sachId}`, {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': csrfToken }
+                    });
+                    const data = await response.json();
+
+                    // Chỉ xử lý thành công nếu API trả về is_favorite: false
+                    if (response.ok && data.success && data.is_favorite === false) {
+                        showNotification(data.message, 'info'); // Thông báo
+                        row.remove(); // Xóa hàng <tr> khỏi bảng
+                        // (Có thể thêm logic cập nhật badge đếm trên tab)
+                    } else {
+                        // Ném lỗi nếu API báo lỗi hoặc trạng thái không như mong đợi
+                        throw new Error(data.error || 'Không thể bỏ yêu thích');
+                    }
+                } catch (error) { // Xử lý lỗi
+                    console.error('Lỗi khi bỏ thích (profile):', error);
+                    showNotification(`Lỗi: ${error.message}`, 'danger');
+                    // Kích hoạt lại nút nếu lỗi
+                    button.disabled = false;
+                    button.innerHTML = 'Bỏ thích'; // Trả lại text gốc
+                }
+            });
+        }
+        // Gọi hàm khởi tạo
+        initializeProfileFavorites();
+
+    }); // Kết thúc DOMContentLoaded
+</script>
+{% endblock %} {# Kết thúc block scripts #}

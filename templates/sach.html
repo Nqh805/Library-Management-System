@@ -1,0 +1,361 @@
+{% extends "base.html" %} {# Kế thừa layout từ base.html #}
+{% block title %}Tra Cứu Sách{% endblock %} {# Đặt tiêu đề trang #}
+
+{# ========================================================= #}
+{# BLOCK CONTENT: Nội dung chính của trang Tra Cứu Sách (Độc giả) #}
+{# Hiển thị form lọc/sắp xếp, danh sách sách dạng lưới (grid), #}
+{# phân trang, và modal để đặt lịch mượn sách. #}
+{# ========================================================= #}
+{% block content %}
+
+<h1 class="mb-4">Tra Cứu Sách Trong Thư Viện</h1>
+
+{# ========================================================= #}
+{# FORM TÌM KIẾM, LỌC VÀ SẮP XẾP #}
+{# Gửi request GET đến chính trang này ('core.danh_sach_sach') để lọc kết quả. #}
+{# ========================================================= #}
+<form method="GET" action="{{ url_for('core.danh_sach_sach') }}" class="mb-4 p-3 bg-light border rounded shadow-sm">
+    {# --- Hàng 1: Tìm kiếm, Lọc Thể loại, Tác giả --- #}
+    <div class="row g-2 mb-2 align-items-end">
+        <div class="col-lg-5">
+            <label for="search" class="form-label form-label-sm">Tìm kiếm (Tiêu đề / Tác giả)</label>
+            <input type="text" class="form-control form-control-sm" name="search" id="search"
+                placeholder="Nhập từ khóa..." value="{{ search_query }}" autocomplete="off">
+        </div>
+        <div class="col-lg-3">
+            <label for="id_the_loai" class="form-label form-label-sm">Thể loại</label>
+            {# Dropdown Thể loại (dùng TomSelect) #}
+            <select name="id_the_loai" id="id_the_loai" placeholder="Chọn thể loại...">
+                <option value="">Tất cả Thể Loại</option>
+                {% for tl in danh_sach_the_loai %}
+                <option value="{{ tl.id_the_loai }}" {% if tl.id_the_loai|string==selected_the_loai %}selected{% endif
+                    %}> {# Giữ lại lựa chọn cũ #}
+                    {{ tl.ten_the_loai }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-lg-3">
+            <label for="id_tac_gia" class="form-label form-label-sm">Tác giả</label>
+            {# Dropdown Tác giả (dùng TomSelect) #}
+            <select name="id_tac_gia" id="id_tac_gia" placeholder="Chọn tác giả...">
+                <option value="">Tất cả Tác Giả</option>
+                {% for tg in danh_sach_tac_gia %}
+                <option value="{{ tg.id_tac_gia }}" {% if tg.id_tac_gia|string==selected_tac_gia %}selected{% endif %}>
+                    {# Giữ lại lựa chọn cũ #}
+                    {{ tg.ten_tac_gia }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-lg-1"></div> {# Cột đệm #}
+    </div>
+    {# --- Hàng 2: Sắp xếp, Lọc sách còn hàng, Nút bấm --- #}
+    <div class="row g-2 align-items-end">
+        <div class="col-lg-3">
+            <label for="sort_by" class="form-label form-label-sm">Sắp xếp theo</label>
+            <select name="sort_by" id="sort_by" class="form-select form-select-sm">
+                <option value="tieu_de" {% if sort_by=='tieu_de' %}selected{% endif %}>Tên sách (A-Z)</option>
+                <option value="nam_xb" {% if sort_by=='nam_xb' %}selected{% endif %}>Năm xuất bản</option>
+            </select>
+        </div>
+        <div class="col-lg-2">
+            <label for="sort_order" class="form-label form-label-sm">Thứ tự</label>
+            <select name="sort_order" id="sort_order" class="form-select form-select-sm">
+                <option value="asc" {% if sort_order=='asc' %}selected{% endif %}>Tăng dần</option>
+                <option value="desc" {% if sort_order=='desc' %}selected{% endif %}>Giảm dần</option>
+            </select>
+        </div>
+        <div class="col-lg-3 d-flex align-items-end pb-1">
+            <div class="form-check form-check-inline">
+                {# Checkbox lọc sách còn hàng (value="true") #}
+                <input class="form-check-input" type="checkbox" name="available_only" value="true" id="available_only"
+                    {% if available_only %}checked{% endif %}>
+                <label class="form-check-label small" for="available_only">Chỉ hiện sách còn hàng</label>
+            </div>
+        </div>
+        <div class="col-lg-2"></div> {# Cột đệm #}
+        <div class="col-lg-1">
+            <button class="btn btn-primary btn-sm w-100" type="submit" title="Lọc"> <i class="fas fa-filter"></i>
+            </button> {# Nút Lọc #}
+        </div>
+        <div class="col-lg-1">
+            <a href="{{ url_for('core.danh_sach_sach') }}" class="btn btn-outline-secondary btn-sm w-100"
+                title="Xóa bộ lọc"> <i class="fas fa-times"></i> </a> {# Nút Xóa bộ lọc #}
+        </div>
+    </div>
+</form>
+
+{# ========================================================= #}
+{# KHỐI HIỂN THỊ KẾT QUẢ SÁCH (Grid) #}
+{# Hiển thị danh sách sách dưới dạng lưới các thẻ (card). #}
+{# ========================================================= #}
+<div class="row g-3"> {# g-3 (gap 3) tạo khoảng cách giữa các cột #}
+    {% for sach in danh_sach %} {# Lặp qua danh sách sách từ context #}
+    {# Cấu hình cột responsive: 2 cột trên di động, 6 cột trên PC lớn #}
+    <div class="col-6 col-sm-4 col-md-3 col-lg-2 mb-3">
+        {# Thẻ <a> bao quanh thẻ sách, dẫn đến trang chi tiết #}
+            <a href="{{ url_for('core.chi_tiet_sach', id_sach=sach.id_sach, slug=slugify(sach.tieu_de)) }}"
+                class="book-card-grid">
+                {# Nút Yêu thích (AJAX) - nằm đè lên trên ảnh #}
+                <button class="btn btn-light btn-sm btn-favorite-card btn-toggle-favorite" data-id="{{ sach.id_sach }}"
+                    onclick="event.preventDefault(); event.stopPropagation();" title="Thêm vào yêu thích"> {#
+                    event.preventDefault/StopPropagation ngăn link thẻ <a> bị kích hoạt khi click nút này #}
+                        <i class="fas fa-heart {% if sach.is_favorite %}is-favorite{% endif %}"></i>
+                </button>
+                <div class="card h-100 shadow-sm"> {# h-100: các thẻ cao bằng nhau #}
+                    {# Ảnh bìa sách #}
+                    <img src="{{ url_for('static', filename='uploads/covers/' ~ (sach.anh_bia | default('default_cover.jpg'))) }}"
+                        class="card-img-top" alt="{{ sach.tieu_de }}">
+                    <div class="card-body d-flex flex-column"> {# flex-column để đẩy nội dung xuống dưới #}
+                        <h6 class="card-title">{{ sach.tieu_de }} {% if sach.ten_tac_gia %}({{ sach.ten_tac_gia }}){%
+                            endif %}</h6> {# Tiêu đề (giới hạn 2 dòng) #}
+                        {# Khối dưới cùng của thẻ: Trạng thái và Nút mượn #}
+                        <div class="mt-auto d-flex justify-content-between align-items-center">
+                            {% if sach.so_luong > 0 %} {# Nếu còn sách #}
+                            <span class="badge bg-success card-availability">Còn {{ sach.so_luong }}</span>
+                            {# Nút "Mượn" -> mở Modal #}
+                            <button type="button" class="btn btn-primary btn-sm"
+                                onclick="event.preventDefault(); event.stopPropagation();" {# Ngăn link thẻ <a> #}
+                                data-bs-toggle="modal" data-bs-target="#confirmMuonSachModal"
+                                data-sach-id="{{ sach.id_sach }}" {# Truyền dữ liệu cho Modal qua data attributes #}
+                                data-sach-tieu-de="{{ sach.tieu_de }}"
+                                data-sach-tac-gia="{{ sach.ten_tac_gia | default('N/A') }}"
+                                data-sach-so-luong="{{ sach.so_luong }}">
+                                Mượn
+                            </button>
+                            {% else %} {# Nếu hết sách #}
+                            <span class="badge bg-danger card-availability">Hết sách</span>
+                            <button class="btn btn-secondary btn-sm" disabled>Mượn</button> {# Nút mượn bị vô hiệu hóa
+                            #}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </a>
+    </div>
+    {% else %} {# Hiển thị nếu `danh_sach` rỗng #}
+    <div class="col-12">
+        <div class="alert alert-info" role="alert"> Không tìm thấy sách nào phù hợp với lựa chọn của bạn. </div>
+    </div>
+    {% endfor %}
+</div>
+
+{# ========================================================= #}
+{# KHỐI PHÂN TRANG #}
+{# Hiển thị thanh phân trang nếu có nhiều hơn 1 trang kết quả. #}
+{# ========================================================= #}
+{% if total_pages > 1 %}
+<nav aria-label="Page navigation" class="mt-4">
+    <ul class="pagination justify-content-center">
+        {# Nút Lùi #}
+        <li class="page-item {% if current_page == 1 %}disabled{% endif %}">
+            {# URL giữ nguyên tất cả các tham số lọc/sắp xếp hiện tại, chỉ thay đổi 'page' #}
+            <a class="page-link"
+                href="{{ url_for('core.danh_sach_sach', page=current_page - 1, search=search_query, id_the_loai=selected_the_loai, id_tac_gia=selected_tac_gia, sort_by=sort_by, sort_order=sort_order, available_only='true' if available_only else None) }}">&laquo;</a>
+        </li>
+        {# Logic hiển thị số trang và dấu ... #}
+        {% set start_page = [1, current_page - 2] | max %}
+        {% set end_page = [total_pages, current_page + 2] | min %}
+        {% if start_page > 1 %}
+        <li class="page-item"><a class="page-link"
+                href="{{ url_for('core.danh_sach_sach', page=1, search=search_query, id_the_loai=selected_the_loai, id_tac_gia=selected_tac_gia, sort_by=sort_by, sort_order=sort_order, available_only='true' if available_only else None) }}">1</a>
+        </li>
+        {% if start_page > 2 %}<li class="page-item disabled"><span class="page-link">...</span></li>{% endif %}
+        {% endif %}
+        {# Các nút số trang #}
+        {% for p in range(start_page, end_page + 1) %}
+        <li class="page-item {% if p == current_page %}active{% endif %}">
+            <a class="page-link"
+                href="{{ url_for('core.danh_sach_sach', page=p, search=search_query, id_the_loai=selected_the_loai, id_tac_gia=selected_tac_gia, sort_by=sort_by, sort_order=sort_order, available_only='true' if available_only else None) }}">{{
+                p }}</a>
+        </li>
+        {% endfor %}
+        {# Logic hiển thị dấu ... và trang cuối #}
+        {% if end_page < total_pages %} {% if end_page < total_pages - 1 %}<li class="page-item disabled"><span
+                class="page-link">...</span></li>{% endif %}
+            <li class="page-item"><a class="page-link"
+                    href="{{ url_for('core.danh_sach_sach', page=total_pages, search=search_query, id_the_loai=selected_the_loai, id_tac_gia=selected_tac_gia, sort_by=sort_by, sort_order=sort_order, available_only='true' if available_only else None) }}">{{
+                    total_pages }}</a></li>
+            {% endif %}
+            {# Nút Tiến #}
+            <li class="page-item {% if current_page == total_pages %}disabled{% endif %}">
+                <a class="page-link"
+                    href="{{ url_for('core.danh_sach_sach', page=current_page + 1, search=search_query, id_the_loai=selected_the_loai, id_tac_gia=selected_tac_gia, sort_by=sort_by, sort_order=sort_order, available_only='true' if available_only else None) }}">&raquo;</a>
+            </li>
+    </ul>
+</nav>
+{% endif %} {# Kết thúc if total_pages > 1 #}
+
+{# ========================================================= #}
+{# MODAL ĐẶT LỊCH MƯỢN SÁCH #}
+{# Hiển thị khi người dùng click nút "Mượn" trên thẻ sách. #}
+{# Chứa form để nhập số lượng, ngày lấy, ngày trả. Submit bằng AJAX. #}
+{# ========================================================= #}
+<div class="modal fade" id="confirmMuonSachModal" tabindex="-1" aria-labelledby="modalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            {# Form này sẽ được JavaScript cập nhật 'action' và gửi bằng AJAX #}
+            <form id="modalMuonSachForm" method="POST" action=""> {# Action sẽ được JS điền động #}
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" /> {# CSRF token #}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalLabel">Đặt Lịch Mượn Sách</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Bạn đang đặt lịch mượn sách:</p>
+                    <h6 id="modalSachTieuDe"></h6> {# Tên sách (JS điền) #}
+                    <p class="text-muted" id="modalSachTacGia"></p> {# Tên tác giả (JS điền) #}
+                    <hr>
+                    <div class="mb-3">
+                        <label for="so_luong_muon" class="form-label">Số lượng</label>
+                        <input type="number" class="form-control" id="so_luong_muon" name="so_luong_muon" value="1"
+                            min="1" required> {# max sẽ được JS đặt #}
+                    </div>
+                    <div class="mb-3">
+                        <label for="ngay_lay_sach" class="form-label">Ngày dự kiến lấy sách</label>
+                        <input type="date" class="form-control" id="ngay_lay_sach" name="ngay_lay_sach" required> {# min
+                        sẽ được JS đặt #}
+                    </div>
+                    <div class="mb-3">
+                        <label for="ngay_tra_sach" class="form-label">Ngày dự kiến trả sách</label>
+                        <input type="date" class="form-control" id="ngay_tra_sach" name="ngay_tra_sach" required> {# min
+                        sẽ được JS đặt #}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Xác Nhận Đặt Lịch</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %} {# Kết thúc block content #}
+
+
+{# ========================================================= #}
+{# BLOCK SCRIPTS: Chứa mã JavaScript cho trang #}
+{# Khởi tạo Modal Mượn Sách, TomSelect, Nút Yêu thích. #}
+{# ========================================================= #}
+{% block scripts %}
+{{ super() }} {# Nhúng các script chung từ base.html #}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+
+        // =========================================================
+        // KHỐI 1: XỬ LÝ MODAL MƯỢN SÁCH (ĐẶT LỊCH) - AJAX
+        // =========================================================
+        const confirmMuonSachModalEl = document.getElementById('confirmMuonSachModal');
+        if (confirmMuonSachModalEl) {
+            const confirmMuonSachModal = new bootstrap.Modal(confirmMuonSachModalEl); // Khởi tạo đối tượng Modal
+            const modalForm = confirmMuonSachModalEl.querySelector('#modalMuonSachForm'); // Form trong modal
+            const submitButton = modalForm.querySelector('button[type="submit"]'); // Nút submit
+            const ngayLayInput = modalForm.querySelector('#ngay_lay_sach'); // Input ngày lấy
+            const ngayTraInput = modalForm.querySelector('#ngay_tra_sach'); // Input ngày trả
+            const soLuongInput = modalForm.querySelector('#so_luong_muon'); // Input số lượng
+
+            // --- Sự kiện 'show.bs.modal': Cập nhật thông tin modal TRƯỚC KHI hiển thị ---
+            confirmMuonSachModalEl.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget; // Nút "Mượn" đã được click
+                // Lấy thông tin sách từ data attributes của nút
+                const sachId = button.getAttribute('data-sach-id');
+                const sachTieuDe = button.getAttribute('data-sach-tieu-de');
+                const sachTacGia = button.getAttribute('data-sach-tac-gia');
+                const sachSoLuong = button.getAttribute('data-sach-so-luong');
+
+                // --- Điền thông tin sách vào modal ---
+                confirmMuonSachModalEl.querySelector('#modalSachTieuDe').textContent = sachTieuDe;
+                confirmMuonSachModalEl.querySelector('#modalSachTacGia').textContent = `Tác giả: ${sachTacGia}`;
+                // Cập nhật action URL của form trỏ đến API mượn sách với ID tương ứng
+                // URL này sẽ được xử lý bởi route /muon-sach/<int:id_sach> trong profile_routes.py
+                modalForm.action = `/muon-sach/${sachId}`;
+                // Đặt giá trị 'max' cho input số lượng dựa trên số sách còn
+                soLuongInput.max = sachSoLuong;
+
+                // --- Reset các giá trị input trong modal ---
+                const today = new Date().toISOString().split('T')[0]; // Lấy ngày hôm nay
+                ngayLayInput.min = today; // Ngày lấy tối thiểu là hôm nay
+                ngayLayInput.value = ''; // Xóa giá trị cũ
+                ngayTraInput.value = ''; // Xóa giá trị cũ
+                ngayTraInput.min = null; // Xóa ràng buộc ngày trả cũ
+                soLuongInput.value = 1; // Đặt lại số lượng là 1
+
+                // Kích hoạt lại nút submit và reset text
+                submitButton.disabled = false;
+                submitButton.innerHTML = 'Xác Nhận Đặt Lịch';
+            }); // Kết thúc event 'show.bs.modal'
+
+            // --- Sự kiện 'change' trên input ngày lấy: Đảm bảo ngày trả luôn sau ngày lấy ---
+            ngayLayInput.addEventListener('change', function () {
+                if (ngayLayInput.value) { // Nếu có ngày lấy
+                    let nextDay = new Date(ngayLayInput.value);
+                    nextDay.setDate(nextDay.getDate() + 1); // Ngày trả tối thiểu là ngày hôm sau
+                    ngayTraInput.min = nextDay.toISOString().split('T')[0]; // Cập nhật min cho ngày trả
+                    // Nếu ngày trả hiện tại không hợp lệ, đặt lại bằng ngày tối thiểu mới
+                    if (ngayTraInput.value && ngayTraInput.value < ngayTraInput.min) {
+                        ngayTraInput.value = ngayTraInput.min;
+                    }
+                } else {
+                    ngayTraInput.min = null; // Xóa ràng buộc nếu ngày lấy bị xóa
+                }
+            }); // Kết thúc event 'change' ngayLayInput
+
+            // --- Xử lý submit form trong modal bằng AJAX ---
+            modalForm.addEventListener('submit', async function (event) {
+                event.preventDefault(); // Ngăn submit form truyền thống
+                // Hiển thị loading
+                const btnOriginalText = submitButton.innerHTML;
+                submitButton.disabled = true;
+                submitButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Đang xử lý...`;
+                // Chuẩn bị dữ liệu và header
+                const formData = new FormData(modalForm);
+                const csrfToken = getCsrfToken(); // Lấy token (hàm từ base.html)
+                const headers = { 'X-CSRFToken': csrfToken };
+
+                try {
+                    // Gửi POST request bằng Fetch API
+                    const response = await fetch(modalForm.action, { method: 'POST', body: formData, headers: headers });
+                    const data = await response.json(); // Đọc phản hồi JSON
+                    confirmMuonSachModal.hide(); // Đóng modal
+
+                    if (response.ok && data.success) { // Nếu thành công
+                        showNotification(data.message, 'success'); // Hiển thị thông báo
+                        // TODO: Cập nhật UI (số lượng sách) ngay tại đây thay vì reload
+                        // Tạm thời có thể reload để thấy thay đổi:
+                        // window.location.reload();
+                    } else { // Nếu lỗi từ server
+                        throw new Error(data.error || `Lỗi server: ${response.status}.`);
+                    }
+                } catch (error) { // Xử lý lỗi
+                    console.error('Lỗi khi đặt lịch mượn sách:', error);
+                    showNotification(`Lỗi: ${error.message}`, 'danger');
+                } finally { // Luôn chạy
+                    // Kích hoạt lại nút submit
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = btnOriginalText;
+                }
+            }); // Kết thúc event listener 'submit'
+        } // Kết thúc if (confirmMuonSachModalEl)
+
+        // =========================================================
+        // KHỐI 2: KHỞI TẠO CÁC THƯ VIỆN (TomSelect, Yêu thích)
+        // =========================================================
+
+        // --- Khởi tạo TomSelect cho dropdown lọc Thể loại và Tác giả ---
+        // (Giả định hàm initializeSearchableSelect đã có trong base.html)
+        if (typeof initializeSearchableSelect === 'function') {
+            initializeSearchableSelect('#id_the_loai');
+            initializeSearchableSelect('#id_tac_gia');
+        }
+
+        // --- Khởi tạo chức năng cho các nút Yêu thích trên trang ---
+        // (Giả định hàm initializeFavoriteButtons đã có trong base.html)
+        if (typeof initializeFavoriteButtons === 'function') {
+            initializeFavoriteButtons();
+        }
+
+    }); // Kết thúc DOMContentLoaded
+</script>
+{% endblock %} {# Kết thúc block scripts #}

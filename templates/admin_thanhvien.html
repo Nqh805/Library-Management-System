@@ -1,0 +1,396 @@
+{% extends "base.html" %} {# Kế thừa layout từ base.html #}
+{% block title %}Quản Lý Thành Viên{% endblock %} {# Đặt tiêu đề trang #}
+
+{# ========================================================= #}
+{# BLOCK CONTENT: Nội dung chính của trang Quản Lý Thành Viên (Admin) #}
+{# Hiển thị danh sách thành viên dưới dạng bảng, cho phép tìm kiếm, lọc, #}
+{# phân trang, và thực hiện các hành động như thêm mới, sửa, khóa/mở khóa tài khoản. #}
+{# ========================================================= #}
+{% block content %}
+{# --- Tiêu đề trang và Nút Thêm Mới --- #}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Danh Sách Thành Viên</h1>
+    {# Nút chuyển đến trang thêm thành viên mới #}
+    <a href="{{ url_for('admin.them_thanhvien') }}" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i> Thêm Thành viên
+    </a>
+</div>
+
+{# ========================================================= #}
+{# FORM TÌM KIẾM VÀ LỌC THÀNH VIÊN #}
+{# Gửi request GET để lọc danh sách thành viên hiển thị trong bảng. #}
+{# ========================================================= #}
+<form method="GET" action="{{ url_for('admin.quan_ly_thanhvien') }}" class="mb-4 p-3 bg-light border rounded">
+    <div class="row g-2 align-items-end">
+        {# Input tìm kiếm theo Tên / Email #}
+        <div class="col-md-5">
+            <label for="search" class="form-label">Tìm Tên / Email</label>
+            <input type="text" class="form-control" placeholder="Nhập từ khóa..." id="search" name="search"
+                value="{{ search_query | default('') }}"> {# Giữ lại giá trị tìm kiếm cũ #}
+        </div>
+        {# Dropdown lọc theo Vai trò #}
+        <div class="col-md-3">
+            <label for="vai_tro" class="form-label">Vai trò</label>
+            <select class="form-select" id="vai_tro" name="vai_tro">
+                <option value="">Tất cả vai trò</option>
+                <option value="quan_ly" {% if selected_vai_tro=='quan_ly' %}selected{% endif %}>Quản Lý</option>
+                <option value="doc_gia" {% if selected_vai_tro=='doc_gia' %}selected{% endif %}>Độc Giả</option>
+            </select>
+        </div>
+        {# Dropdown lọc theo Trạng thái #}
+        <div class="col-md-3">
+            <label for="trang_thai" class="form-label">Trạng thái</label>
+            <select class="form-select" id="trang_thai" name="trang_thai">
+                <option value="">Tất cả trạng thái</option>
+                <option value="hoat_dong" {% if selected_trang_thai=='hoat_dong' %}selected{% endif %}>Hoạt động
+                </option>
+                <option value="da_khoa" {% if selected_trang_thai=='da_khoa' %}selected{% endif %}>Đã khóa</option>
+            </select>
+        </div>
+        {# Nút Lọc và Xóa bộ lọc #}
+        <div class="col-md-1 d-flex">
+            <button class="btn btn-primary flex-grow-1 me-1" type="submit" title="Lọc"><i
+                    class="fas fa-filter"></i></button>
+            <a href="{{ url_for('admin.quan_ly_thanhvien') }}" class="btn btn-outline-secondary" title="Xóa bộ lọc"><i
+                    class="fas fa-times"></i></a>
+        </div>
+    </div>
+</form>
+
+{# ========================================================= #}
+{# BẢNG HIỂN THỊ DANH SÁCH THÀNH VIÊN #}
+{# ========================================================= #}
+<table class="table table-striped table-bordered mt-3 align-middle">
+    <thead class="table-dark">
+        <tr>
+            <th>ID</th>
+            <th>Họ Tên</th>
+            <th>Email</th>
+            <th>Vai Trò</th>
+            <th>Trạng Thái</th>
+            <th>Ngày Đăng Ký</th>
+            <th style="width: 160px;">Hành Động</th> {# Cột chứa nút Sửa/Khóa/Mở khóa #}
+        </tr>
+    </thead>
+    <tbody>
+        {% for tv in danh_sach_thanh_vien %} {# Lặp qua danh sách thành viên từ context #}
+        <tr id="member-row-{{ tv.id_thanh_vien }}"> {# ID duy nhất cho mỗi hàng, dùng cho JS cập nhật UI #}
+            <td>{{ tv.id_thanh_vien }}</td>
+            <td>{{ tv.ho_ten }}</td>
+            <td>{{ tv.email }}</td>
+            <td> {# Hiển thị badge Vai trò #}
+                {% if tv.vai_tro == 'quan_ly' %} <span class="badge bg-success">Quản Lý</span>
+                {% else %} <span class="badge bg-secondary">Độc Giả</span>
+                {% endif %}
+            </td>
+            <td class="status-cell"> {# Class cho JS dễ tìm ô trạng thái #}
+                {# Hiển thị badge Trạng thái #}
+                {% if tv.trang_thai == 'da_khoa' %} <span class="badge bg-secondary">Đã khóa</span>
+                {% else %} <span class="badge bg-success">Hoạt động</span>
+                {% endif %}
+            </td>
+            <td>{{ tv.ngay_dang_ky.strftime('%d-%m-%Y %H:%M') }}</td> {# Định dạng ngày đăng ký #}
+            <td class="action-cell"> {# Class cho JS dễ tìm ô hành động #}
+                {# Nút Sửa thông tin #}
+                <a href="{{ url_for('admin.sua_thanhvien', id_thanh_vien=tv.id_thanh_vien) }}"
+                    class="btn btn-sm btn-warning">Sửa</a>
+
+                {# Chỉ hiển thị nút Khóa/Mở khóa nếu không phải là tài khoản admin đang đăng nhập #}
+                {% if tv.id_thanh_vien != current_user.id %}
+                {# Nếu tài khoản đang hoạt động -> hiển thị nút Khóa #}
+                {% if tv.trang_thai == 'hoat_dong' %}
+                <button type="button" class="btn btn-sm btn-danger btn-lock" data-bs-toggle="modal"
+                    data-bs-target="#confirmLockModal" data-member-id="{{ tv.id_thanh_vien }}"
+                    data-member-name="{{ tv.ho_ten }}">
+                    Khóa
+                </button>
+                {# Nếu tài khoản đang bị khóa -> hiển thị nút Mở khóa #}
+                {% else %}
+                <button type="button" class="btn btn-sm btn-success btn-unlock" data-bs-toggle="modal"
+                    data-bs-target="#confirmUnlockModal" data-member-id="{{ tv.id_thanh_vien }}"
+                    data-member-name="{{ tv.ho_ten }}">
+                    Mở khóa
+                </button>
+                {% endif %}
+                {% endif %}
+            </td>
+        </tr>
+        {% else %} {# Hiển thị nếu danh sách rỗng #}
+        <tr>
+            <td colspan="7" class="text-center">Không tìm thấy thành viên nào phù hợp.</td> {# Cập nhật colspan=7 #}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{# ========================================================= #}
+{# KHỐI PHÂN TRANG #}
+{# Hiển thị thanh phân trang nếu có nhiều hơn 1 trang kết quả. #}
+{# ========================================================= #}
+{% if total_pages > 1 %}
+<nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center">
+        {# Nút Lùi #}
+        <li class="page-item {% if current_page == 1 %}disabled{% endif %}">
+            {# Tạo URL giữ nguyên các tham số lọc/tìm kiếm #}
+            <a class="page-link"
+                href="{{ url_for('admin.quan_ly_thanhvien', page=current_page - 1, search=search_query, vai_tro=selected_vai_tro, trang_thai=selected_trang_thai) }}"
+                aria-label="Previous">
+                <span aria-hidden="true">&laquo;</span>
+            </a>
+        </li>
+        {# Logic hiển thị số trang và dấu ... #}
+        {% set start_page = [1, current_page - 2] | max %}
+        {% set end_page = [total_pages, current_page + 2] | min %}
+        {% if start_page > 1 %}
+        <li class="page-item"><a class="page-link"
+                href="{{ url_for('admin.quan_ly_thanhvien', page=1, search=search_query, vai_tro=selected_vai_tro, trang_thai=selected_trang_thai) }}">1</a>
+        </li>
+        {% if start_page > 2 %}<li class="page-item disabled"><span class="page-link">...</span></li>{% endif %}
+        {% endif %}
+        {# Các nút số trang #}
+        {% for p in range(start_page, end_page + 1) %}
+        <li class="page-item {% if p == current_page %}active{% endif %}">
+            <a class="page-link"
+                href="{{ url_for('admin.quan_ly_thanhvien', page=p, search=search_query, vai_tro=selected_vai_tro, trang_thai=selected_trang_thai) }}">{{
+                p }}</a>
+        </li>
+        {% endfor %}
+        {# Logic hiển thị dấu ... và trang cuối #}
+        {% if end_page < total_pages %} {% if end_page < total_pages - 1 %}<li class="page-item disabled"><span
+                class="page-link">...</span></li>{% endif %}
+            <li class="page-item"><a class="page-link"
+                    href="{{ url_for('admin.quan_ly_thanhvien', page=total_pages, search=search_query, vai_tro=selected_vai_tro, trang_thai=selected_trang_thai) }}">{{
+                    total_pages }}</a></li>
+            {% endif %}
+            {# Nút Tiến #}
+            <li class="page-item {% if current_page == total_pages %}disabled{% endif %}">
+                <a class="page-link"
+                    href="{{ url_for('admin.quan_ly_thanhvien', page=current_page + 1, search=search_query, vai_tro=selected_vai_tro, trang_thai=selected_trang_thai) }}"
+                    aria-label="Next">
+                    <span aria-hidden="true">&raquo;</span>
+                </a>
+            </li>
+    </ul>
+</nav>
+{% endif %} {# Kết thúc if total_pages > 1 #}
+
+{# ========================================================= #}
+{# CÁC MODAL XÁC NHẬN (Khóa/Mở khóa) #}
+{# ========================================================= #}
+
+{# --- Modal Xác nhận Khóa Tài Khoản --- #}
+<div class="modal fade" id="confirmLockModal" tabindex="-1" aria-labelledby="modalLabelLock" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalLabelLock">Xác Nhận Khóa Tài Khoản</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Bạn có chắc chắn muốn KHÓA tài khoản <strong id="modalMemberName"></strong>? <br> {# Tên thành viên sẽ
+                được JS điền vào #}
+                Người dùng này sẽ không thể đăng nhập.
+            </div>
+            <div class="modal-footer">
+                {# Form này sẽ được submit bằng AJAX, action được JS cập nhật #}
+                <form id="lockForm" method="POST" action="">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" /> {# Thêm CSRF token ẩn #}
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-danger btn-confirm-action">Xác Nhận Khóa</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# --- Modal Xác nhận Mở Khóa Tài Khoản --- #}
+<div class="modal fade" id="confirmUnlockModal" tabindex="-1" aria-labelledby="modalLabelUnlock" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalLabelUnlock">Xác Nhận Mở Khóa Tài Khoản</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Bạn có chắc chắn muốn MỞ KHÓA tài khoản <strong id="modalUnlockMemberName"></strong>? {# Tên thành viên
+                sẽ được JS điền vào #}
+            </div>
+            <div class="modal-footer">
+                {# Form này sẽ được submit bằng AJAX, action được JS cập nhật #}
+                <form id="unlockForm" method="POST" action="">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" /> {# Thêm CSRF token ẩn #}
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-success btn-confirm-action">Xác Nhận Mở Khóa</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} {# Kết thúc block content #}
+
+
+{# ========================================================= #}
+{# BLOCK SCRIPTS: Chứa mã JavaScript cho trang #}
+{# ========================================================= #}
+{% block scripts %}
+{{ super() }} {# Nhúng các script chung từ base.html (như getCsrfToken, showNotification) #}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+
+        // --- Hàm Chung: Xử lý Submit Modal Khóa/Mở khóa bằng AJAX và Cập nhật UI ---
+        // Hàm này nhận modal, form, nút submit và callback để cập nhật giao diện hàng
+        async function handleMemberAction(modalElement, formElement, submitButton, updateUICallback) {
+            formElement.addEventListener('submit', async function (event) {
+                event.preventDefault(); // Ngăn submit form mặc định
+                const actionUrl = formElement.action; // Lấy URL API từ action
+                const originalButtonText = submitButton.innerHTML;
+                const csrfToken = getCsrfToken();
+                const headers = { 'X-CSRFToken': csrfToken }; // Chuẩn bị header
+                // Lấy ID thành viên từ URL (giả định URL có dạng /.../action/ID)
+                const memberIdMatch = actionUrl.match(/\/(\d+)$/);
+                const memberId = memberIdMatch ? memberIdMatch[1] : null;
+
+                // --- Hiển thị loading ---
+                submitButton.disabled = true;
+                submitButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Đang xử lý...`;
+
+                try {
+                    // --- Gửi request POST bằng Fetch API ---
+                    const response = await fetch(actionUrl, { method: 'POST', headers: headers });
+                    const data = await response.json(); // Đọc phản hồi JSON
+
+                    // Đóng modal
+                    const modalInstance = bootstrap.Modal.getInstance(modalElement);
+                    if (modalInstance) modalInstance.hide();
+
+                    // --- Xử lý kết quả ---
+                    if (response.ok && data.success) { // Nếu server trả về thành công
+                        // Gọi hàm callback để cập nhật giao diện hàng (status và nút bấm)
+                        if (memberId && updateUICallback) {
+                            updateUICallback(memberId, data);
+                        }
+                        showNotification(data.message, 'success'); // Hiển thị thông báo thành công
+                    } else {
+                        // Nếu lỗi -> ném lỗi
+                        throw new Error(data.error || `Lỗi server: ${response.status}.`);
+                    }
+                } catch (error) {
+                    // --- Xử lý lỗi ---
+                    console.error('Lỗi khi thực hiện hành động thành viên:', error);
+                    showNotification(`Đã xảy ra lỗi: ${error.message}.`, 'danger'); // Hiển thị lỗi
+                } finally {
+                    // --- Khôi phục nút submit ---
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonText;
+                }
+            }); // Kết thúc event listener submit
+        } // Kết thúc hàm handleMemberAction
+
+        // =========================================================
+        // KHỐI XỬ LÝ CHO MODAL KHÓA TÀI KHOẢN
+        // =========================================================
+        const lockModalElement = document.getElementById('confirmLockModal');
+        if (lockModalElement) {
+            const lockForm = document.getElementById('lockForm'); // Form trong modal
+            const modalMemberNameSpan = document.getElementById('modalMemberName'); // Span hiển thị tên
+            const submitButton = lockForm.querySelector('.btn-confirm-action'); // Nút submit
+
+            // Cập nhật thông tin modal trước khi hiển thị
+            lockModalElement.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget; // Nút "Khóa" đã click
+                const memberId = button.dataset.memberId;
+                const memberName = button.dataset.memberName;
+                // Cập nhật tên và action URL
+                if (modalMemberNameSpan) modalMemberNameSpan.textContent = `'${memberName}'`;
+                if (lockForm) lockForm.action = `/admin/thanhvien/xoa/${memberId}`; // URL API khóa
+                // Thêm CSRF token vào form nếu chưa có
+                if (!lockForm.querySelector('input[name="csrf_token"]')) {
+                    const csrfInput = document.createElement('input');
+                    csrfInput.type = 'hidden';
+                    csrfInput.name = 'csrf_token';
+                    csrfInput.value = getCsrfToken();
+                    lockForm.appendChild(csrfInput);
+                }
+            });
+
+            // Gắn hàm xử lý AJAX và callback cập nhật UI
+            handleMemberAction(lockModalElement, lockForm, submitButton, (id, responseData) => {
+                // Callback function: Cập nhật giao diện hàng sau khi khóa thành công
+                const row = document.getElementById(`member-row-${id}`); // Tìm hàng tr
+                if (!row) return; // Thoát nếu không tìm thấy hàng
+                const statusCell = row.querySelector('.status-cell'); // Ô trạng thái
+                const actionCell = row.querySelector('.action-cell'); // Ô hành động
+                const memberNameElement = document.getElementById('modalMemberName'); // Lấy tên từ modal để dùng lại
+                const memberName = memberNameElement ? memberNameElement.textContent.slice(1, -1) : 'Người dùng này';
+
+                // Cập nhật ô trạng thái thành "Đã khóa"
+                if (statusCell) statusCell.innerHTML = '<span class="badge bg-secondary">Đã khóa</span>';
+                // Cập nhật ô hành động: thay nút "Khóa" bằng nút "Mở khóa"
+                if (actionCell) {
+                    actionCell.innerHTML = `
+                        <a href="/admin/thanhvien/sua/${id}" class="btn btn-sm btn-warning">Sửa</a>
+                        <button type="button" class="btn btn-sm btn-success btn-unlock" data-bs-toggle="modal"
+                                data-bs-target="#confirmUnlockModal" data-member-id="${id}" data-member-name="${memberName}">
+                            Mở khóa
+                        </button>
+                    `;
+                }
+            }); // Kết thúc handleMemberAction cho khóa
+        } // Kết thúc if (lockModalElement)
+
+        // =========================================================
+        // KHỐI XỬ LÝ CHO MODAL MỞ KHÓA TÀI KHOẢN
+        // =========================================================
+        const unlockModalElement = document.getElementById('confirmUnlockModal');
+        if (unlockModalElement) {
+            const unlockForm = document.getElementById('unlockForm'); // Form trong modal
+            const modalMemberNameSpan = document.getElementById('modalUnlockMemberName'); // Span hiển thị tên
+            const submitButton = unlockForm.querySelector('.btn-confirm-action'); // Nút submit
+
+            // Cập nhật thông tin modal trước khi hiển thị
+            unlockModalElement.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget; // Nút "Mở khóa" đã click
+                const memberId = button.dataset.memberId;
+                const memberName = button.dataset.memberName;
+                // Cập nhật tên và action URL
+                if (modalMemberNameSpan) modalMemberNameSpan.textContent = `'${memberName}'`;
+                if (unlockForm) unlockForm.action = `/admin/thanhvien/mokhoa/${memberId}`; // URL API mở khóa
+                // Thêm CSRF token vào form nếu chưa có
+                if (!unlockForm.querySelector('input[name="csrf_token"]')) {
+                    const csrfInput = document.createElement('input');
+                    csrfInput.type = 'hidden';
+                    csrfInput.name = 'csrf_token';
+                    csrfInput.value = getCsrfToken();
+                    unlockForm.appendChild(csrfInput);
+                }
+            });
+
+            // Gắn hàm xử lý AJAX và callback cập nhật UI
+            handleMemberAction(unlockModalElement, unlockForm, submitButton, (id, responseData) => {
+                // Callback function: Cập nhật giao diện hàng sau khi mở khóa thành công
+                const row = document.getElementById(`member-row-${id}`); // Tìm hàng tr
+                if (!row) return; // Thoát nếu không tìm thấy hàng
+                const statusCell = row.querySelector('.status-cell'); // Ô trạng thái
+                const actionCell = row.querySelector('.action-cell'); // Ô hành động
+                const memberNameElement = document.getElementById('modalUnlockMemberName');
+                const memberName = memberNameElement ? memberNameElement.textContent.slice(1, -1) : 'Người dùng này';
+
+                // Cập nhật ô trạng thái thành "Hoạt động"
+                if (statusCell) statusCell.innerHTML = '<span class="badge bg-success">Hoạt động</span>';
+                // Cập nhật ô hành động: thay nút "Mở khóa" bằng nút "Khóa"
+                if (actionCell) {
+                    actionCell.innerHTML = `
+                        <a href="/admin/thanhvien/sua/${id}" class="btn btn-sm btn-warning">Sửa</a>
+                        <button type="button" class="btn btn-sm btn-danger btn-lock" data-bs-toggle="modal"
+                                data-bs-target="#confirmLockModal" data-member-id="${id}" data-member-name="${memberName}">
+                            Khóa
+                        </button>
+                    `;
+                }
+            }); // Kết thúc handleMemberAction cho mở khóa
+        } // Kết thúc if (unlockModalElement)
+
+    }); // Kết thúc DOMContentLoaded
+</script>
+{% endblock %} {# Kết thúc block scripts #}
