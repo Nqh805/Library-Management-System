@@ -1,0 +1,6 @@
+# Không bao giờ đưa tệp biến môi trường lên Git
+.env
+
+# Các tệp rác khác của Python
+__pycache__/
+*.pyc

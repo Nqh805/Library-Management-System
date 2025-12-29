@@ -1,0 +1,6 @@
+Flask
+Flask-Login
+Flask-WTF
+mysql-connector-python
+python-dotenv
+Werkzeug
