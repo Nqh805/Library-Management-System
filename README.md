@@ -13,3 +13,5 @@
 * Các bảng chính: Sách, Độc giả, Mượn trả, Tác giả.
 
 ## 📸 Sơ đồ ERD
+
+<img width="1474" height="829" alt="Screenshot 2025-12-29 225617" src="https://github.com/user-attachments/assets/c2ebaf19-1729-4307-a8e2-acc2946a88cb" />
