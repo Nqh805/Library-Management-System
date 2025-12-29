@@ -1,0 +1,569 @@
+/* ========================================================= */
+/* FILE: static/css/style.css */
+/* Tệp CSS chung cho toàn bộ dự án. */
+/* ========================================================= */
+
+/* ========================================================= */
+/* CSS CHUNG (Layout, Scrollbar) */
+/* Thường được định nghĩa trong base.html */
+/* ========================================================= */
+
+/* --- CSS Layout chung --- */
+html,
+body {
+    height: 100%;
+    /* Đảm bảo html, body chiếm đủ chiều cao */
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    /* Sử dụng Flexbox để đẩy footer xuống dưới */
+    min-height: 100vh;
+}
+
+.container.mt-4 {
+    flex: 1 0 auto;
+    /* Vùng content chính co giãn */
+}
+
+footer {
+    flex-shrink: 0;
+    /* Footer không co lại */
+}
+
+/* --- CSS cho thanh cuộn ngang (dùng ở home.html, chi_tiet_sach.html) --- */
+.scrolling-wrapper {
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    padding-bottom: 1rem;
+    scrollbar-width: thin;
+    /* Firefox */
+    scrollbar-color: #adb5bd #f1f1f1;
+    /* Firefox */
+}
+
+/* Chrome, Edge, Safari */
+.scrolling-wrapper::-webkit-scrollbar {
+    height: 8px;
+}
+
+.scrolling-wrapper::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.scrolling-wrapper::-webkit-scrollbar-thumb {
+    background: #adb5bd;
+    border-radius: 10px;
+}
+
+.scrolling-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* --- CSS cho Phân trang (dùng chung ở admin_sach, admin_thanhvien, sach, home) --- */
+.pagination .page-item.active .page-link {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.pagination .page-link {
+    color: #0d6efd;
+}
+
+.pagination .page-item.disabled .page-link {
+    color: #6c757d;
+}
+
+/* ========================================================= */
+/* CSS TRANG CHỦ (home.html) & TRANG TRA CỨU (sach.html) */
+/* ========================================================= */
+
+/* --- CSS cho kết quả Live Search (dùng ở home.html) --- */
+.book-card .card-img-top {
+    /* Đặt chiều cao mặc định cho TẤT CẢ thẻ ảnh */
+    height: 220px;
+    object-fit: cover;
+    display: block;
+    /* Dùng màu nền của thẻ làm placeholder khi ảnh lỗi */
+    background-color: #f9f5e8;
+}
+
+.live-search-results .dropdown-item {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    white-space: normal;
+}
+
+.live-search-results .search-item-img {
+    width: 50px;
+    height: 70px;
+    object-fit: cover;
+    margin-right: 1rem;
+    border-radius: 4px;
+}
+
+.live-search-results .search-item-info {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-grow: 1;
+}
+
+.live-search-results .search-item-title {
+    font-weight: bold;
+    color: #212529;
+    margin-bottom: 0.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.live-search-results .search-item-author,
+.live-search-results .search-item-borrows {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.live-search-results .dropdown-item:hover,
+.live-search-results .dropdown-item:focus {
+    background-color: #f8f9fa;
+}
+
+.live-search-results.show {
+    display: block;
+    border: 1px solid #dee2e6;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* --- CSS cho Thẻ Sách (Chung) (dùng ở home, sach, chi_tiet_sach) --- */
+.book-card {
+    position: relative;
+    background-color: #f9f5e8;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+}
+
+.book-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+
+/* Định dạng thẻ sách trong khu vực cuộn ngang (home, chi_tiet_sach) */
+.scrolling-wrapper .book-card {
+    display: inline-block;
+    width: 155px;
+    margin-right: 0.8rem;
+    vertical-align: top;
+    white-space: normal;
+    height: auto;
+}
+
+.scrolling-wrapper .book-card .card-img-top {
+    height: 220px;
+    /* Chiều cao ảnh sách liên quan */
+    object-fit: cover;
+    display: block;
+}
+
+.scrolling-wrapper .book-card .card-body {
+    padding: 0.5rem 0.4rem;
+    text-align: center;
+}
+
+/* Giới hạn tiêu đề 2 dòng (cho thẻ cuộn ngang) */
+.scrolling-wrapper .book-card .card-title {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #333;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    height: 2.6em;
+    line-height: 1.3em;
+    margin: 0;
+}
+
+/* --- CSS cho Thẻ Sách (Dạng Lưới) (dùng ở sach.html, home.html khi tìm kiếm) --- */
+.book-link.stretched-link .card-body {
+    padding: 0.5rem 0.4rem;
+    text-align: center;
+}
+
+.book-link.stretched-link .card-title {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #333;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    height: 2.6em;
+    line-height: 1.3em;
+    margin: 0;
+}
+
+.book-card-grid {
+    display: block;
+    white-space: normal;
+    height: 100%;
+    text-decoration: none;
+    color: inherit;
+    position: relative;
+}
+
+.book-card-grid .card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    background-color: #f9f5e8;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    height: 100%;
+}
+
+.book-card-grid:hover .card {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.book-card-grid .card-img-top {
+    height: 280px;
+    /* Chiều cao ảnh sách trong lưới */
+    object-fit: cover;
+}
+
+.book-card-grid .card-body {
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.book-card-grid .card-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #333;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    height: 2.6em;
+    line-height: 1.3em;
+    margin: 0;
+}
+
+.book-card-grid .card-author {
+    font-size: 0.8rem;
+    color: #6c757d;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 0.5rem;
+}
+
+.book-card-grid .card-availability {
+    font-size: 0.85rem;
+}
+
+.book-card-grid .card-body .mt-auto {
+    margin-top: auto !important;
+    /* Đẩy nút Mượn xuống dưới */
+}
+
+/* --- CSS cho Nút Yêu thích (trên thẻ sách) --- */
+.btn-favorite-card {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 10;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 50%;
+    width: 35px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    transition: background-color 0.2s ease;
+    border: none;
+    padding: 0;
+}
+
+.btn-favorite-card:hover {
+    background-color: rgba(255, 255, 255, 0.9);
+}
+
+.btn-favorite-card .fa-heart {
+    color: #adb5bd;
+    transition: color 0.2s ease;
+}
+
+.btn-favorite-card .fa-heart.is-favorite {
+    color: #dc3545 !important;
+}
+
+.btn-favorite-card:hover .fa-heart:not(.is-favorite) {
+    color: #e66774;
+}
+
+.btn-favorite-card:hover .fa-heart.is-favorite {
+    color: #c82333 !important;
+}
+
+/* --- CSS cho Tiêu đề Section (dùng ở home.html) --- */
+.section-title {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+}
+
+.section-title i {
+    margin-right: 0.5rem;
+    color: #0d6efd;
+}
+
+/* Link bao phủ thẻ sách */
+.book-link {
+    color: inherit;
+}
+a.stretched-link::after {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1;
+    content: "";
+}
+
+/* ========================================================= */
+/* CSS TRANG CHI TIẾT SÁCH (chi_tiet_sach.html) */
+/* ========================================================= */
+
+/* --- CSS cho Nút Yêu Thích Lớn (nút chính) --- */
+.btn-favorite {
+    font-size: 1.5rem;
+    color: #adb5bd;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.btn-favorite.is-favorite {
+    color: #dc3545 !important;
+    transform: scale(1.1);
+}
+
+button.btn-toggle-favorite:hover .btn-favorite:not(.is-favorite) {
+    color: #e66774;
+}
+
+button.btn-toggle-favorite:hover .btn-favorite.is-favorite {
+    color: #c82333 !important;
+}
+
+/* --- CSS cho Sao Đánh Giá --- */
+.rating-stars {
+    display: inline-block;
+    font-size: 1.5rem;
+    color: #ffc107;
+}
+
+.rating-stars .star {
+    cursor: pointer;
+    transition: color 0.2s ease-out;
+    margin: 0 1px;
+}
+
+.rating-stars .star:hover,
+.rating-stars .star.hovered {
+    color: #ffca2c;
+}
+
+.rating-stars .star i.far {
+    color: #e4e5e9;
+}
+
+.rating-stars .star:hover i.far,
+.rating-stars .star.hovered i.far {
+    color: #ffca2c;
+}
+
+.rating-input input[type="radio"] {
+    display: none;
+}
+
+/* --- CSS cho Danh sách Bình luận --- */
+.comment-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* ========================================================= */
+/* CSS TRANG HỒ SƠ CÁ NHÂN (profile.html) */
+/* ========================================================= */
+
+/* --- CSS cho các trạng thái mượn sách --- */
+.trang-thai-da-muon {
+    color: #198754;
+    font-weight: bold;
+}
+
+.trang-thai-cho-duyet {
+    color: #ffc107;
+    font-weight: bold;
+}
+
+.trang-thai-qua-han {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.trang-thai-da-tra {
+    color: #6c757d;
+}
+
+/* --- CSS cho nội dung các tab --- */
+.tab-content {
+    border: 1px solid #dee2e6;
+    border-top: none;
+    padding: 1.5rem;
+    border-radius: 0 0 0.375rem 0.375rem;
+    background-color: #fff;
+}
+
+/* --- CSS cho ảnh đại diện (avatar) --- */
+.avatar-preview {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 4px solid #eee;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+}
+
+.avatar-upload-container {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+}
+
+.avatar-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.4);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+    color: white;
+    font-size: 1.5rem;
+}
+
+.avatar-upload-container:hover .avatar-overlay {
+    opacity: 1;
+}
+
+/* --- CSS cho danh sách Nhật ký Hoạt động (Admin) --- */
+.log-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.log-list-item {
+    font-size: 0.9rem;
+}
+
+.log-time {
+    color: #6c757d;
+    font-weight: 500;
+    margin-right: 10px;
+    display: inline-block;
+    width: 130px;
+}
+
+/* ========================================================= */
+/* CSS CHO CÁC TRANG ADMIN (admin_dashboard, admin_sach, admin_thanhvien...) */
+/* ========================================================= */
+
+/* --- CSS cho thẻ Thống kê (admin_dashboard) --- */
+.card .border-left-primary {
+    border-left: 0.25rem solid #4e73df !important;
+}
+
+.card .border-left-success {
+    border-left: 0.25rem solid #1cc88a !important;
+}
+
+.card .border-left-info {
+    border-left: 0.25rem solid #36b9cc !important;
+}
+
+.card .border-left-danger {
+    border-left: 0.25rem solid #e74a3b !important;
+}
+
+.card .border-left-warning {
+    border-left: 0.25rem solid #f6c23e !important;
+}
+
+.text-gray-300 {
+    color: #dddfeb !important;
+}
+
+/* --- CSS cho Biểu đồ (admin_dashboard) --- */
+.chart-area {
+    position: relative;
+    height: 20rem;
+    width: 100%;
+}
+
+/* --- CSS cho Bảng Admin (admin_sach, admin_thanhvien) --- */
+/* Hàng có thể click (admin_sach) */
+.clickable-row {
+    cursor: pointer;
+}
+
+.clickable-row:hover {
+    background-color: #f5f5f5;
+}
+
+/* * MỚI: Ngăn tiêu đề cột bảng admin xuống dòng */
+table thead th {
+    white-space: nowrap; /* Buộc text trên 1 dòng */
+    vertical-align: middle; /* Căn giữa text theo chiều dọc */
+}
+
+/* * MỚI: Ngăn cột "Người Mượn" (ho_ten) bị xuống dòng */
+.col-ho-ten {
+    white-space: nowrap;
+}
+
+/* Cột hành động (admin_sach, admin_thanhvien) */
+.action-cell form,
+.action-cell button,
+.action-cell a {
+    display: inline-block;
+    margin: 0 2px;
+}
+
+/* Ảnh thumbnail trong bảng (admin_sach) */
+.book-thumbnail-admin {
+    width: 45px;
+    height: 65px;
+    object-fit: cover;
+}
