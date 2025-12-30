@@ -8,7 +8,7 @@
 * **Ngôn ngữ hỗ trợ:** Python (xử lý dữ liệu/kết nối)
 
 ## 📋 Tính năng chính (Database)
-* **Thiết kế sơ đồ UseCase, sơ đồ thực thể liên kết (ERD) và ánh xạ sang mô hình quan hệ**.
+* **Thiết kế sơ đồ UseCase, sơ đồ thực thể liên kết (ERD) và ánh xạ sang lược đồ quan hệ**.
 * **Cơ sở dữ liệu chuẩn hóa tới dạng chuẩn 3 (3NF)**: Đảm bảo dữ liệu nguyên tố, phụ thuộc đầy đủ vào khóa chính, và không chứa phụ thuộc bắc cầu, bảo đảm tính toàn vẹn dữ liệu.
 * **Quản lý quan hệ phức tạp:** Xử lý mối quan hệ Nhiều - Nhiều (N-N) giữa Sách - Tác giả - Thể loại.
 * **Ràng buộc dữ liệu chặt chẽ:** Sử dụng Foreign Key (ON DELETE RESTRICT/CASCADE) để đảm bảo không xảy ra lỗi orphan data (dữ liệu mồ côi) khi thao tác xóa/sửa.
@@ -19,9 +19,12 @@
 
 <img width="949" height="816" alt="Screenshot 2025-10-29 230625" src="https://github.com/user-attachments/assets/74d74e5b-267a-476b-9fba-e679aef87fff" />
 
-
 ## 📸 Sơ đồ ERD
 
 <img width="1474" height="829" alt="Screenshot 2025-12-29 225617" src="https://github.com/user-attachments/assets/c2ebaf19-1729-4307-a8e2-acc2946a88cb" />
+
+## 📸 Lược đồ quan hệ
+
+<img width="839" height="851" alt="Screenshot 2025-12-30 001504" src="https://github.com/user-attachments/assets/a70ba579-18f2-4442-b329-1e5c898cbdb8" />
 
 
