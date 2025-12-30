@@ -28,5 +28,6 @@
 <img width="839" height="851" alt="Screenshot 2025-12-30 001504" src="https://github.com/user-attachments/assets/a70ba579-18f2-4442-b329-1e5c898cbdb8" />
 
 ## 📄 Tài liệu báo cáo
-Chi tiết phân tích hệ thống và thiết kế CSDL xem tại đây: [Tải báo cáo PDF](./docs/Bài%20Tập%20Lớn%20Cơ%20Sở%20Dữ%20Liệu%20(final).pdf)
+*Chi tiết phân tích hệ thống và thiết kế CSDL xem tại đây:* [Tải báo cáo PDF](./docs/Bài%20Tập%20Lớn%20Cơ%20Sở%20Dữ%20Liệu%20(final).pdf)
+
 
