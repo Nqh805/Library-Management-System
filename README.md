@@ -9,7 +9,7 @@
 
 ## 📋 Tính năng chính (Database)
 * **Thiết kế sơ đồ UseCase, sơ đồ thực thể liên kết (ERD) và ánh xạ sang lược đồ quan hệ**.
-* **Cơ sở dữ liệu chuẩn hóa tới dạng chuẩn 3 (3NF)**: Đảm bảo dữ liệu nguyên tố, phụ thuộc đầy đủ vào khóa chính, và không chứa phụ thuộc bắc cầu, bảo đảm tính toàn vẹn dữ liệu.
+* **Cơ sở dữ liệu chuẩn hóa tới dạng chuẩn 3 (3NF)**: Đảm bảo dữ liệu nguyên tử, phụ thuộc đầy đủ vào khóa chính, và không chứa phụ thuộc bắc cầu, bảo đảm tính toàn vẹn dữ liệu.
 * **Quản lý quan hệ phức tạp:** Xử lý mối quan hệ Nhiều - Nhiều (N-N) giữa Sách - Tác giả - Thể loại.
 * **Ràng buộc dữ liệu chặt chẽ:** Sử dụng Foreign Key (ON DELETE RESTRICT/CASCADE) để đảm bảo không xảy ra lỗi orphan data (dữ liệu mồ côi) khi thao tác xóa/sửa.
 * **Truy vấn hiệu quả:** Cấu trúc bảng được tối ưu để phục vụ các tác vụ tìm kiếm sách và thống kê mượn trả nhanh chóng.
@@ -29,6 +29,7 @@
 
 ## 📄 Tài liệu báo cáo
 *Chi tiết phân tích hệ thống và thiết kế CSDL xem tại đây:* [Tải báo cáo PDF](./docs/Báo%20cáo%20bài%20tập%20lớn%20Cơ%20Sở%20Dữ%20Liệu.pdf)
+
 
 
 
